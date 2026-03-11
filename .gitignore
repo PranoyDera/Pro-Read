@@ -1,0 +1,16 @@
+# dependencies
+Backend/node_modules/
+Frontend/pro-read/node_modules/
+
+# env/secrets
+Backend/.env
+Frontend/pro-read/.env
+.env
+
+# build output
+Frontend/pro-read/.next/
+dist/
+build/
+
+# logs
+*.log
