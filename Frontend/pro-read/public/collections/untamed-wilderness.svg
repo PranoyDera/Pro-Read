@@ -1,0 +1,52 @@
+<svg width="640" height="528" viewBox="0 0 640 528" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="528" rx="32" fill="#0A1313"/>
+  <rect width="640" height="528" rx="32" fill="url(#fog)"/>
+  <rect x="40" y="0" width="18" height="528" fill="url(#treeDark)"/>
+  <rect x="92" y="0" width="12" height="528" fill="url(#treeSoft)"/>
+  <rect x="150" y="0" width="20" height="528" fill="url(#treeDark)"/>
+  <rect x="214" y="0" width="10" height="528" fill="url(#treeSoft)"/>
+  <rect x="270" y="0" width="18" height="528" fill="url(#treeDark)"/>
+  <rect x="338" y="0" width="12" height="528" fill="url(#treeSoft)"/>
+  <rect x="400" y="0" width="18" height="528" fill="url(#treeDark)"/>
+  <rect x="470" y="0" width="10" height="528" fill="url(#treeSoft)"/>
+  <rect x="532" y="0" width="20" height="528" fill="url(#treeDark)"/>
+  <rect x="588" y="0" width="12" height="528" fill="url(#treeSoft)"/>
+  <path d="M327 0H365L399 528H293L327 0Z" fill="url(#lightPath)"/>
+  <path d="M258 528C280 474 314 436 356 414C392 394 436 386 472 392V528H258Z" fill="url(#groundRight)"/>
+  <path d="M0 528C92 464 166 428 228 420C274 415 308 419 344 430V528H0Z" fill="url(#groundLeft)"/>
+  <rect width="640" height="528" rx="32" fill="url(#vignette)"/>
+  <defs>
+    <linearGradient id="treeDark" x1="49" y1="0" x2="49" y2="528" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#233731"/>
+      <stop offset="1" stop-color="#08100F"/>
+    </linearGradient>
+    <linearGradient id="treeSoft" x1="98" y1="0" x2="98" y2="528" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#425F59"/>
+      <stop offset="1" stop-color="#101B1A"/>
+    </linearGradient>
+    <linearGradient id="lightPath" x1="346" y1="0" x2="346" y2="528" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F3FCFC" stop-opacity="0.88"/>
+      <stop offset="0.18" stop-color="#D5E8E6" stop-opacity="0.56"/>
+      <stop offset="0.42" stop-color="#8AA6A1" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#0B1314" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="groundRight" x1="365" y1="392" x2="365" y2="528" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#20392F"/>
+      <stop offset="1" stop-color="#0A1010"/>
+    </linearGradient>
+    <linearGradient id="groundLeft" x1="172" y1="420" x2="172" y2="528" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#182A24"/>
+      <stop offset="1" stop-color="#060C0C"/>
+    </linearGradient>
+    <radialGradient id="fog" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(337 94) rotate(90) scale(326 294)">
+      <stop offset="0.08" stop-color="#F7FFFF" stop-opacity="0.78"/>
+      <stop offset="0.26" stop-color="#D6E7E5" stop-opacity="0.34"/>
+      <stop offset="0.6" stop-color="#6B827E" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#0A1313" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vignette" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(320 148) rotate(90) scale(392 424)">
+      <stop offset="0.62" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.56"/>
+    </radialGradient>
+  </defs>
+</svg>

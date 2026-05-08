@@ -1,0 +1,49 @@
+<svg width="640" height="528" viewBox="0 0 640 528" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="528" rx="32" fill="#07101A"/>
+  <rect x="0" y="0" width="182" height="528" fill="url(#leftWall)"/>
+  <rect x="462" y="0" width="178" height="528" fill="url(#rightWall)"/>
+  <rect x="180" y="0" width="282" height="528" fill="url(#street)"/>
+  <path d="M309 0H350L388 528H272L309 0Z" fill="url(#depth)"/>
+  <rect x="72" y="90" width="82" height="146" rx="4" fill="#FF9C2E" fill-opacity="0.72"/>
+  <rect x="486" y="118" width="102" height="50" rx="4" fill="#FFBD55" fill-opacity="0.72"/>
+  <rect x="474" y="202" width="96" height="118" rx="4" fill="#F4C96E" fill-opacity="0.3"/>
+  <rect x="66" y="280" width="76" height="92" rx="4" fill="#5EDAD5" fill-opacity="0.26"/>
+  <path d="M321 300C341 300 358 317 358 337V424H284V337C284 317 301 300 321 300Z" fill="#0A1118"/>
+  <rect x="296" y="336" width="50" height="92" rx="10" fill="#0E161E"/>
+  <circle cx="321" cy="278" r="28" fill="#081118"/>
+  <rect x="0" y="394" width="640" height="134" fill="url(#floorGlow)"/>
+  <rect width="640" height="528" rx="32" fill="url(#mist)"/>
+  <defs>
+    <linearGradient id="leftWall" x1="91" y1="0" x2="91" y2="528" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#132536"/>
+      <stop offset="1" stop-color="#071019"/>
+    </linearGradient>
+    <linearGradient id="rightWall" x1="551" y1="0" x2="551" y2="528" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#192B39"/>
+      <stop offset="1" stop-color="#071119"/>
+    </linearGradient>
+    <linearGradient id="street" x1="321" y1="0" x2="321" y2="528" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#62D8D4"/>
+      <stop offset="0.16" stop-color="#2F6974"/>
+      <stop offset="0.38" stop-color="#17303C"/>
+      <stop offset="0.7" stop-color="#0A131E"/>
+      <stop offset="1" stop-color="#04080E"/>
+    </linearGradient>
+    <linearGradient id="depth" x1="330" y1="0" x2="330" y2="528" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C2FFF0" stop-opacity="0.62"/>
+      <stop offset="0.18" stop-color="#67ECE2" stop-opacity="0.34"/>
+      <stop offset="0.5" stop-color="#122F3C" stop-opacity="0"/>
+      <stop offset="1" stop-color="#071018" stop-opacity="0.8"/>
+    </linearGradient>
+    <linearGradient id="floorGlow" x1="320" y1="394" x2="320" y2="528" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B1522" stop-opacity="0"/>
+      <stop offset="1" stop-color="#04080E"/>
+    </linearGradient>
+    <radialGradient id="mist" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(320 148) rotate(90) scale(370 420)">
+      <stop offset="0.08" stop-color="#DFFFF9" stop-opacity="0.42"/>
+      <stop offset="0.3" stop-color="#6BE5DF" stop-opacity="0.18"/>
+      <stop offset="0.72" stop-color="#09121C" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.52"/>
+    </radialGradient>
+  </defs>
+</svg>

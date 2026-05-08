@@ -1,0 +1,51 @@
+<svg width="640" height="528" viewBox="0 0 640 528" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="528" rx="32" fill="#120E0B"/>
+  <rect y="8" width="640" height="92" fill="#2A2019"/>
+  <rect y="16" width="640" height="72" fill="url(#pages1)"/>
+  <rect y="112" width="640" height="92" fill="#231A15"/>
+  <rect y="120" width="640" height="72" fill="url(#pages2)"/>
+  <rect y="216" width="640" height="92" fill="#201714"/>
+  <rect y="224" width="640" height="72" fill="url(#pages3)"/>
+  <rect y="320" width="640" height="92" fill="#1A1411"/>
+  <rect y="328" width="640" height="72" fill="url(#pages4)"/>
+  <rect y="424" width="640" height="104" fill="url(#shadow)"/>
+  <rect width="640" height="528" rx="32" fill="url(#vignette)"/>
+  <defs>
+    <linearGradient id="pages1" x1="0" y1="52" x2="640" y2="52" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C5A57A"/>
+      <stop offset="0.2" stop-color="#E3C79F"/>
+      <stop offset="0.46" stop-color="#A77F52"/>
+      <stop offset="0.78" stop-color="#E0C39A"/>
+      <stop offset="1" stop-color="#BA966C"/>
+    </linearGradient>
+    <linearGradient id="pages2" x1="0" y1="156" x2="640" y2="156" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C8AA81"/>
+      <stop offset="0.24" stop-color="#E2C7A2"/>
+      <stop offset="0.56" stop-color="#9F774C"/>
+      <stop offset="0.82" stop-color="#D8BA92"/>
+      <stop offset="1" stop-color="#B78D60"/>
+    </linearGradient>
+    <linearGradient id="pages3" x1="0" y1="260" x2="640" y2="260" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C6A379"/>
+      <stop offset="0.22" stop-color="#E7CEAA"/>
+      <stop offset="0.5" stop-color="#A37A50"/>
+      <stop offset="0.78" stop-color="#E0C7A0"/>
+      <stop offset="1" stop-color="#B28A5E"/>
+    </linearGradient>
+    <linearGradient id="pages4" x1="0" y1="364" x2="640" y2="364" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#BE9B72"/>
+      <stop offset="0.18" stop-color="#E1C49C"/>
+      <stop offset="0.52" stop-color="#976F47"/>
+      <stop offset="0.82" stop-color="#DDBF97"/>
+      <stop offset="1" stop-color="#AB8357"/>
+    </linearGradient>
+    <linearGradient id="shadow" x1="320" y1="424" x2="320" y2="528" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#120E0B" stop-opacity="0"/>
+      <stop offset="1" stop-color="#090708"/>
+    </linearGradient>
+    <radialGradient id="vignette" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(320 110) rotate(90) scale(450 580)">
+      <stop offset="0.62" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.48"/>
+    </radialGradient>
+  </defs>
+</svg>
