@@ -1,10 +1,10 @@
-import MyProfileContainer from '@/app/containers/MyProfile'
+import MyLibraryContainer from '@/app/containers/MyLibrary'
 import React from 'react'
 
 function index() {
   return (
     <div>
-        <MyProfileContainer/>
+        <MyLibraryContainer/>
     </div>
   )
 }

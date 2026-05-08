@@ -5,12 +5,17 @@ dotenv.config();
 
 const { Pool } = pkg;
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
+const poolConfig = {
+  connectionString: process.env.DATABASE_URL
+};
+
+if (process.env.DB_SSL === "true") {
+  poolConfig.ssl = {
     rejectUnauthorized: false
-  }
-});
+  };
+}
+
+const pool = new Pool(poolConfig);
 
 export const checkDbConnection = async () => {
   try {

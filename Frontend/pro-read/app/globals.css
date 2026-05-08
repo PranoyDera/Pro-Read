@@ -120,9 +120,19 @@
   * {
     @apply border-border outline-ring/50;
   }
+
+  :root {
+    color-scheme: dark;
+  }
+
   body {
     @apply bg-background text-foreground;
+    background:
+      radial-gradient(circle at top, rgba(65, 79, 160, 0.12), transparent 24%),
+      linear-gradient(180deg, #090f1d 0%, #060b17 100%);
+    overflow: hidden;
   }
+
   html {
     @apply font-sans;
   }

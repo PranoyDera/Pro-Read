@@ -1,30 +1,25 @@
-import FeaturedHero from "./FeaturedHero";
-import ContinueReadingSection, {
-  ContinueReadingStory,
-} from "./StoryListSection";
-import GenresSection from "./genres";
-
-
-const continueReading: ContinueReadingStory[] = [
-  { title: "Moonlit Oath", author: "Elara Finch", minutes: "9 min left" },
-  { title: "Ashes of Winter", author: "Noah Glass", minutes: "16 min left" },
-  { title: "The River Archive", author: "Ira Bloom", minutes: "11 min left" },
-  { title: "The Glass Orchard", author: "Reed Nolan", minutes: "7 min left" },
-  { title: "Wanderers of Dawn", author: "Mina Kade", minutes: "13 min left" },
-  { title: "Letters from Halcyon", author: "Ari Sol", minutes: "18 min left" },
-];
+import CollectionSection from "./Sections/CollectionSection/CollectionSection";
+import FeaturedHero from "./FeaturedHero/FeaturedHero";
+import HomeFooter from "./Footer/HomeFooter";
+import HomeTopBar from "./Topbar/HomeTopBar";
+import JoinCircleSection from "./Sections/JoinCircleSection";
+import StaffPicksSection from "./Sections/StaffPicksSection";
+import TrendingSection from "./Sections/TrendingSection";
 
 function HomeComponent() {
   return (
-    <section className="min-h-full px-4 py-6 md:px-8 md:py-8">
-      <div className="space-y-6 pb-12">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_65%_0%,rgba(59,74,144,0.22),transparent_28%),linear-gradient(180deg,#090f1e_0%,#070c18_100%)] text-white">
+      <HomeTopBar />
+
+      <main className="space-y-14 py-0">
         <FeaturedHero />
-
-        <ContinueReadingSection stories={continueReading} />
-
-        <GenresSection />
-      </div>
-    </section>
+          <CollectionSection />
+          <TrendingSection />
+          <StaffPicksSection />
+          <JoinCircleSection />
+          <HomeFooter />
+      </main>
+    </div>
   );
 }
 
