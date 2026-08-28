@@ -1,5 +1,5 @@
 import { Bookmark } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "../ui/Button";
 
 export default function ReadingCard() {
   return (

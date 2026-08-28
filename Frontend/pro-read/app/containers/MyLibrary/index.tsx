@@ -1,4 +1,4 @@
-import MyLibraryComponent from '@/app/components/MyLibrary'
+import MyLibraryComponent from '@/app/Components/MyLibrary'
 import React from 'react'
 
 function MyLibraryContainer() {

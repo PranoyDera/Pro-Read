@@ -1,4 +1,4 @@
-import HistoryPageContainer from "@/app/containers/History";
+import HistoryPageContainer from "@/app/Containers/History";
 
 export default function HistoryPage() {
   return (

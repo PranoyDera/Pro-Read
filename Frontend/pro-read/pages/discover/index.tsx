@@ -1,4 +1,4 @@
-import DiscoverContainer from "@/app/containers/discover";
+import DiscoverContainer from "@/app/Containers/Discover";
 
 export default function DiscoverPage() {
   return <DiscoverContainer />;

@@ -1,22 +1,22 @@
 import type { AppProps } from "next/app";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Geist_Mono } from "next/font/google";
 import { useEffect, useRef, useState } from "react";
 
 import { getAuthToken } from "@/app/api/api";
-import { authApi, type AuthUser } from "@/app/api/apiUrl";
-import AuthModal from "@/app/components/Auth/AuthModal";
-import { Sidebar } from "@/app/components/layout/sidebar";
+import { authService, type AuthUser } from "@/app/Service/AuthService";
+import AuthModal from "@/app/Components/Auth/AuthModal";
+import { Sidebar } from "@/app/Components/Layout/sidebar";
 import {
   AUTH_TOKEN_EVENT,
   PUBLIC_ROUTES,
   USER_ALLOWED_ROUTES,
-} from "@/app/constants/common";
+} from "@/app/Constants/Common";
 import "@/app/globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-sans",
   subsets: ["latin"],
 });
 
@@ -40,7 +40,11 @@ export default function App({ Component, pageProps }: AppProps) {
 
   useEffect(() => {
     const syncAuthState = () => {
-      setIsAuthenticated(Boolean(getAuthToken()));
+      const hasToken = Boolean(getAuthToken());
+      setIsAuthenticated(hasToken);
+      if (!hasToken) {
+        setCurrentUser(null);
+      }
       setIsAuthReady(true);
     };
 
@@ -55,12 +59,7 @@ export default function App({ Component, pageProps }: AppProps) {
   }, []);
 
   useEffect(() => {
-    if (!isAuthReady) {
-      return;
-    }
-
-    if (!isAuthenticated) {
-      setCurrentUser(null);
+    if (!isAuthReady || !isAuthenticated) {
       return;
     }
 
@@ -68,7 +67,7 @@ export default function App({ Component, pageProps }: AppProps) {
 
     const loadCurrentUser = async () => {
       try {
-        const response = await authApi.me();
+        const response = await authService.me();
 
         if (isMounted) {
           setCurrentUser(response.user);
@@ -116,7 +115,9 @@ export default function App({ Component, pageProps }: AppProps) {
     pendingRouteRef.current = router.asPath;
 
     if (router.pathname !== "/") {
-      setIsGuardModalOpen(true);
+      queueMicrotask(() => {
+        setIsGuardModalOpen(true);
+      });
 
       void router.replace({
         pathname: "/",
@@ -145,7 +146,7 @@ export default function App({ Component, pageProps }: AppProps) {
       </Head>
 
       <div
-        className={`${geistSans.variable} ${geistMono.variable} dark antialiased`}
+        className={`${inter.variable} ${inter.className} ${geistMono.variable} dark antialiased font-sans`}
       >
         {showProtectedLayout ? (
           <div className="flex h-screen overflow-hidden bg-[#070c18]">

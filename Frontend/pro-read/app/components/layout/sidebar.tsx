@@ -1,25 +1,25 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/router";
 import type { ComponentType } from "react";
 import {
-  BookOpenText,
   Bookmark,
   Compass,
   Crown,
   Flame,
+  GraduationCap,
   Home,
-  LibraryBig,
   Mail,
-  Settings,
+  PenSquare,
   Star,
   Users,
 } from "lucide-react";
 
-import type { AuthUser } from "@/app/api/apiUrl";
-import { Button } from "@/app/components/ui/button";
-import { USER_ALLOWED_ROUTES } from "@/app/constants/common";
+import type { AuthUser } from "@/app/Service/AuthService";
+import { Button } from "@/app/Components/ui/Button";
+import { USER_ALLOWED_ROUTES } from "@/app/Constants/Common";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
@@ -33,10 +33,12 @@ type NavGroup = {
   items: NavItem[];
 };
 
-const navGroups: NavGroup[] = [
+const getNavGroups = (): NavGroup[] => [
   {
     items: [
       { label: "Home", href: "/home", icon: Home },
+      { label: "Create Story", href: "/createStory", icon: PenSquare },
+      { label: "Authors", href: "/authors", icon: GraduationCap },
       { label: "Discover", href: "/discover", icon: Compass },
       { label: "My Library", href: "/myLibrary", icon: Bookmark },
       { label: "History", href: "/history", icon: Flame },
@@ -81,10 +83,26 @@ function SidebarLink({
       asChild
       variant="ghost"
       className={cn(
-        "h-11 w-full justify-start rounded-xl border px-3.5 text-sm font-medium text-slate-300 transition",
+        "group relative h-12 w-full justify-start gap-3 border-0 px-3.5 text-sm font-medium transition-all duration-200",
         isActive
-          ? "border-indigo-400/50 bg-indigo-500/12 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] hover:bg-indigo-500/18"
-          : "border-transparent hover:border-white/10 hover:bg-white/5 hover:text-white"
+          ? [
+              // Active container
+              "-mx-4 w-[calc(100%+1rem)]",
+              "rounded-r-full rounded-l-none",
+              "bg-[#181d2e]",
+              "pl-7 pr-5",
+              "text-[#b9b6ff]",
+              "hover:bg-[#181d2e]",
+
+              // Left purple indicator
+              "before:absolute before:left-0 before:top-0 before:h-full before:w-1.5",
+              "before:bg-[#6864ff]",
+            ]
+          : [
+              "rounded-[5px]",
+              "text-slate-300",
+              "hover:bg-white/5 hover:text-white",
+            ]
       )}
     >
       <Link
@@ -95,9 +113,33 @@ function SidebarLink({
             onProtectedRouteClick();
           }
         }}
+        className="flex w-full items-center gap-3"
       >
-        <Icon className="size-4.5" />
-        <span>{item.label}</span>
+        {/* Active icon circle */}
+        <span
+          className={cn(
+            "flex shrink-0 items-center justify-center transition-all duration-200",
+            isActive
+              ? "h-9 w-9 rounded-full bg-[#b8b5ff] text-[#25235c]"
+              : "h-9 w-9 text-slate-400 group-hover:text-white"
+          )}
+        >
+          <Icon
+            className={cn(
+              "transition-all duration-200",
+              isActive ? "size-5" : "size-[18px]"
+            )}
+          />
+        </span>
+
+        <span
+          className={cn(
+            "truncate transition-colors",
+            isActive ? "text-[15px] font-medium text-[#b9b6ff]" : ""
+          )}
+        >
+          {item.label}
+        </span>
       </Link>
     </Button>
   );
@@ -158,18 +200,21 @@ function SidebarProfile({
         }
       }}
       className={cn(
-        "rounded-2xl border border-white/8 bg-white/[0.03] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] cursor-pointer"
+        "rounded-[5px] border border-white/8 bg-white/[0.03] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] cursor-pointer"
       )}
     >
       <div className="flex items-center gap-3">
         {currentUser?.profile_pic ? (
-          <img
+          <Image
             src={currentUser.profile_pic}
             alt={currentUser.name || "Profile avatar"}
-            className="h-12 w-12 rounded-2xl object-cover ring-1 ring-white/10"
+            width={48}
+            height={48}
+            className="h-12 w-12 rounded-full object-cover ring-1 ring-white/10"
+            unoptimized
           />
         ) : (
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500/80 to-cyan-400/70 text-sm font-semibold text-white ring-1 ring-white/10">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/80 to-cyan-400/70 text-sm font-semibold text-white ring-1 ring-white/10">
             {userInitial}
           </div>
         )}
@@ -215,7 +260,7 @@ export function Sidebar({
       </div>
 
       <div className="space-y-7">
-        {navGroups.map((group, index) => (
+        {getNavGroups().map((group, index) => (
           <SidebarGroup
             key={group.label ?? `group-${index}`}
             group={group}

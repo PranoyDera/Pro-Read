@@ -102,6 +102,11 @@ export const login = async (req, res) => {
         phone_number: user.phone_number,
         gender: user.gender,
         profile_pic: user.profile_pic,
+        role: user.role,
+        is_verified: user.is_verified,
+        bio: user.bio,
+        reason: user.reason,
+        birth_date: user.birth_date,
         created_at: user.created_at,
         updated_at: user.updated_at
       }
@@ -126,3 +131,4 @@ export const getCurrentUser = async (req, res) => {
       .json({ message: "Failed to fetch user profile", error: error.message });
   }
 };
+

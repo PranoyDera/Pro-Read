@@ -5,7 +5,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "../../ui/card";
+} from "../../ui/Card";
 
 export type ContinueReadingStory = {
   title: string;

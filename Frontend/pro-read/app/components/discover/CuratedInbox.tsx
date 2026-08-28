@@ -1,7 +1,7 @@
 import { BookOpen } from 'lucide-react'
 import React from 'react'
-import { Input } from '../ui/input'
-import { Button } from '../ui/button'
+import { Input } from '../ui/Input'
+import { Button } from '../ui/Button'
 
 function CuratedInbox() {
   return (

@@ -1,4 +1,4 @@
-import HistoryPage from '@/app/components/History'
+import HistoryPage from '@/app/Components/History'
 import React from 'react'
 
 function HistoryPageContainer() {

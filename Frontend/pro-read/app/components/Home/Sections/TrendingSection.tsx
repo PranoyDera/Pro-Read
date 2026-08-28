@@ -2,7 +2,7 @@ import { TrendingUp } from "lucide-react";
 
 import { trendingStories } from "../home-data";
 import SectionHeading from "./SectionHeading";
-import TrendingStoryCard from "./components/TrendingStoryCard";
+import TrendingStoryCard from "./TrendingStoryCard";
 
 export default function TrendingSection() {
   return (

@@ -5,8 +5,8 @@ import { useRouter } from "next/router";
 import { LogIn } from "lucide-react";
 
 import AuthModal, { AuthMode } from "./AuthModal";
-import { Button } from "../ui/button";
-import ActionModal from "../ui/confirmationModal";
+import { Button } from "../ui/Button";
+import ActionModal from "../ui/ConfirmationModal";
 
 type AuthEntryProps = {
   onSuccess?: () => void;
@@ -59,7 +59,7 @@ export default function AuthEntry({
         <Button
           onClick={() => openWith("login")}
           variant="outline"
-          className="h-10 rounded-md border-white/20 bg-slate-900/40 px-5 text-sm font-semibold text-white hover:bg-slate-800"
+          className="h-10 rounded-[5px] border-white/20 bg-slate-900/40 px-5 text-sm font-semibold text-white hover:bg-slate-800"
         >
           <LogIn className="size-4" />
           Login

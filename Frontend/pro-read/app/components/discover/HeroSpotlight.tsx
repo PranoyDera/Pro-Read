@@ -1,7 +1,7 @@
 // components/HeroSpotlight.tsx
 import { Play } from "lucide-react";
 import React from "react";
-import { Button } from "../ui/button";
+import { Button } from "../ui/Button";
 
 interface HeroProps {
   title: string;

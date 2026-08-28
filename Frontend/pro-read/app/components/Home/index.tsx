@@ -1,4 +1,4 @@
-import CollectionSection from "./Sections/CollectionSection/CollectionSection";
+import CollectionSection from "./Sections/CollectionSection";
 import FeaturedHero from "./FeaturedHero/FeaturedHero";
 import HomeFooter from "./Footer/HomeFooter";
 import HomeTopBar from "./Topbar/HomeTopBar";

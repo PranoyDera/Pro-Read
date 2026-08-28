@@ -126,7 +126,8 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+    font-family: var(--font-sans), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background:
       radial-gradient(circle at top, rgba(65, 79, 160, 0.12), transparent 24%),
       linear-gradient(180deg, #090f1d 0%, #060b17 100%);
@@ -135,6 +136,7 @@
 
   html {
     @apply font-sans;
+    font-family: var(--font-sans), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 }
 

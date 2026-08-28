@@ -1,6 +1,6 @@
 import { Play, Plus } from "lucide-react";
 
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@/app/Components/ui/Button";
 import { featuredStory } from "../home-data";
 
 export default function FeaturedHero() {

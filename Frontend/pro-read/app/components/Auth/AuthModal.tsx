@@ -4,11 +4,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { login, signup } from "@/app/api/apiUrl";
+import Image from "next/image";
+import { login, signup } from "@/app/Service/AuthService";
 import { setAuthToken } from "@/app/api/api";
-import { Button } from "../ui/button";
+import { Button } from "../ui/Button";
 import FormField, { PasswordField } from "./FormField";
-import AppDropdown from "../ui/appDropdown";
+import AppDropdown from "../ui/AppDropdown";
 
 export type AuthMode = "login" | "signup";
 
@@ -279,14 +280,6 @@ export default function AuthModal({
                 </div>
 
                 <div>
-                  <div className="flex justify-between text-xs text-white/60">
-                    {mode === "login" && (
-                      <span className="hover:text-purple-300 cursor-pointer">
-                        Forgot password?
-                      </span>
-                    )}
-                  </div>
-
                   <div className="relative">
                     <PasswordField
                       value={mode === "login" ? loginForm.password : signupForm.password}
@@ -295,6 +288,17 @@ export default function AuthModal({
                       autoComplete={mode === "login" ? "current-password" : "new-password"}
                     />
                   </div>
+                  {mode === "login" && (
+                    <div className="flex justify-end mt-2.5">
+                      <button
+                        type="button"
+                        style={{ fontFamily: "Manrope, sans-serif" }}
+                        className="text-xs text-white/60 hover:text-purple-300 transition-colors duration-200 font-medium cursor-pointer focus:outline-none"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* SIGNUP ONLY FIELDS */}
@@ -350,7 +354,7 @@ export default function AuthModal({
                 <Button
                   onClick={handleSubmit}
                   disabled={isSubmitting}
-                  className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 py-5 rounded-md text-sm font-medium hover:opacity-90 transition disabled:cursor-not-allowed disabled:opacity-70"
+                  className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 py-5 rounded-[5px] text-sm font-medium hover:opacity-90 transition disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {isSubmitting
                     ? mode === "login"
@@ -372,15 +376,29 @@ export default function AuthModal({
                 <div className="flex gap-3">
                   <button
                     type="button"
-                    className="flex-1 bg-white/10 py-2 rounded-lg text-sm hover:bg-white/20"
+                    className="group relative flex-1 flex items-center justify-center gap-2.5 py-2.5 px-4 rounded-[5px] bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 hover:border-white/20 text-sm font-medium text-white/90 hover:text-white transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 backdrop-blur-md"
                   >
-                    Google
+                    <Image
+                      src="/icons/google.svg"
+                      alt="Google"
+                      width={16}
+                      height={16}
+                      className="transition-transform duration-200 group-hover:scale-110"
+                    />
+                    <span>Google</span>
                   </button>
                   <button
                     type="button"
-                    className="flex-1 bg-white/10 py-2 rounded-lg text-sm hover:bg-white/20"
+                    className="group relative flex-1 flex items-center justify-center gap-2.5 py-2.5 px-4 rounded-[5px] bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 hover:border-white/20 text-sm font-medium text-white/90 hover:text-white transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 backdrop-blur-md"
                   >
-                    Apple
+                    <Image
+                      src="/icons/apple-icon.svg"
+                      alt="Apple"
+                      width={16}
+                      height={16}
+                      className="transition-transform duration-200 group-hover:scale-110"
+                    />
+                    <span>Apple</span>
                   </button>
                 </div>
 

@@ -1,4 +1,4 @@
-import MyProfileComponent from '@/app/components/MyProfile'
+import MyProfileComponent from '@/app/Components/MyProfile'
 import React from 'react'
 
 function MyProfileContainer() {

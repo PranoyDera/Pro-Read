@@ -1,7 +1,7 @@
 import { Bell, Menu, Search } from "lucide-react";
 
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
+import { Button } from "@/app/Components/ui/Button";
+import { Input } from "@/app/Components/ui/Input";
 import AuthEntry from "../../Auth/AuthEntry";
 
 export default function HomeTopBar() {

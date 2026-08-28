@@ -5,7 +5,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-} from "@/app/components/ui/dropdown-menu";
+} from "@/app/Components/ui/Dropdown-menu";
 
 type DropdownItem = {
   label: string;

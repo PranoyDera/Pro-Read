@@ -4,12 +4,13 @@ export const API_BASE_URL =
 export const AUTH_TOKEN_KEY = "authToken";
 export const AUTH_TOKEN_EVENT = "auth-token-changed";
 export const PUBLIC_ROUTES = new Set(["/"]);
-export const USER_ALLOWED_ROUTES = new Set(["/home"]);
+export const USER_ALLOWED_ROUTES = new Set(["/home", "/createStory"]);
 
 export const API_ENDPOINTS = {
   auth: {
     login: "/api/auth/login",
     signup: "/api/auth/signup",
     me: "/api/auth/me",
+    becomeAuthor: "/api/auth/become-author",
   },
 } as const;

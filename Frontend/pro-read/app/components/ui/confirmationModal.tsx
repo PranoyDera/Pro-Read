@@ -5,7 +5,7 @@ import { AlertTriangle, Archive, Trash2, X } from "lucide-react";
 import { createPortal } from "react-dom";
 import { ReactNode } from "react";
 
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@/app/Components/ui/Button";
 import { cn } from "@/lib/utils";
 
 type ModalVariant = "primary" | "danger" | "warning";

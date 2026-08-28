@@ -1,6 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import BookCard from "./BookCard";
-import { Button } from "../ui/button";
+import { Button } from "../ui/Button";
 
 const finishedBooks = [
   {
