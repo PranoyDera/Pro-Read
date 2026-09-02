@@ -108,16 +108,12 @@ export default function App({ Component, pageProps }: AppProps) {
 
     previousAuthRef.current = false;
 
-    if (isPublicRoute || isAllowedUserRoute) {
-      return;
-    }
-
-    pendingRouteRef.current = router.asPath;
+    queueMicrotask(() => {
+      setIsGuardModalOpen(true);
+    });
 
     if (router.pathname !== "/") {
-      queueMicrotask(() => {
-        setIsGuardModalOpen(true);
-      });
+      pendingRouteRef.current = router.asPath;
 
       void router.replace({
         pathname: "/",
@@ -126,7 +122,7 @@ export default function App({ Component, pageProps }: AppProps) {
         },
       });
     }
-  }, [isAllowedUserRoute, isAuthenticated, isAuthReady, isPublicRoute, router]);
+  }, [isAuthenticated, isAuthReady, router]);
 
   const showProtectedLayout = isAuthReady && shouldShowSidebarLayout;
   // const shouldShowGuardModal =

@@ -44,57 +44,30 @@ export type AuthResponse = {
 };
 
 export const login = async (payload: LoginPayload): Promise<AuthResponse> => {
-  try {
-    const response = await axiosInstance.post<AuthResponse>(
-      API_ENDPOINTS.auth.login,
-      payload
-    );
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  const response = await axiosInstance.post<AuthResponse>(
+    API_ENDPOINTS.auth.login,
+    payload
+  );
+  return response.data;
 };
 
 export const signup = async (payload: SignupPayload): Promise<AuthResponse> => {
-  try {
-    const response = await axiosInstance.post<AuthResponse>(
-      API_ENDPOINTS.auth.signup,
-      payload
-    );
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  const response = await axiosInstance.post<AuthResponse>(
+    API_ENDPOINTS.auth.signup,
+    payload
+  );
+  return response.data;
 };
 
 export const me = async (): Promise<{ user: AuthUser }> => {
-  try {
-    const response = await axiosInstance.get<{ user: AuthUser }>(
-      API_ENDPOINTS.auth.me
-    );
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-export const becomeAuthor = async (
-  payload: BecomeAuthorPayload
-): Promise<AuthResponse> => {
-  try {
-    const response = await axiosInstance.post<AuthResponse>(
-      API_ENDPOINTS.auth.becomeAuthor,
-      payload
-    );
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  const response = await axiosInstance.get<{ user: AuthUser }>(
+    API_ENDPOINTS.auth.me
+  );
+  return response.data;
 };
 
 export const authService = {
   login,
   signup,
   me,
-  becomeAuthor,
 };

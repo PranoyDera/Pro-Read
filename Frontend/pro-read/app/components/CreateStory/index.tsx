@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import CreateStoryComponent from './Editor';
 import { 
   PenTool, 
@@ -8,24 +9,32 @@ import {
   UploadCloud, 
   Sparkles, 
   ArrowRight, 
-  ArrowLeft,
+  ArrowLeft, 
   Clock, 
   File, 
   X, 
   Trash2, 
   CheckCircle2, 
   FileCode, 
-  BookOpen,
-  Eye,
-  Heart,
-  Save,
-  Check,
-  Send,
-  Bell
+  BookOpen, 
+  Eye, 
+  Heart, 
+  Save, 
+  Check, 
+  Send, 
+  Bell, 
+  Loader2,
+  Feather,
+  UserPlus,
+  Calendar,
+  AlertCircle
 } from 'lucide-react';
 import { IconBooks, IconNotebook, IconSparkles } from '@tabler/icons-react';
 import { StoryCard } from '@/app/Components/Authors/StoryCard';
 import type { Story } from '@/app/Components/Authors';
+import { getMyDrafts, getMyPublishedStories, getSingleStory, deleteStory, StoryItem } from '@/app/Service/StoryService';
+import { me, AuthUser } from '@/app/Service/AuthService';
+import { becomeAuthor } from '@/app/Service/UserService';
 
 interface PublishedStory {
   id: string;
@@ -39,6 +48,7 @@ interface PublishedStory {
 
 interface DraftItem {
   id: string;
+  authorId?: number | string;
   title: string;
   excerpt: string;
   lastEdited: string;
@@ -119,104 +129,241 @@ const OptionCard: React.FC<OptionCardProps> = ({
 };
 
 export default function CreateStoryPage() {
+  const router = useRouter();
   const [activeView, setActiveView] = useState<'hub' | 'editor' | 'drafts' | 'upload'>('hub');
-  const [initialStoryData, setInitialStoryData] = useState<{ title?: string; content?: string } | null>(null);
+  const [initialStoryData, setInitialStoryData] = useState<{
+    id?: string | number;
+    title?: string;
+    content?: string;
+    genre?: string;
+    coverPic?: string;
+    authorName?: string;
+    authorInitial?: string;
+    readTime?: string;
+    isReadOnly?: boolean;
+  } | null>(null);
 
-  // Mock drafts state
-  const [drafts, setDrafts] = useState<DraftItem[]>([
-    {
-      id: '1',
-      title: 'Whispers of the Celestial Canopy',
-      excerpt: 'The stars didn’t just shine above Eldoria; they hummed with an ancient resonance that only the keepers could decipher...',
-      lastEdited: '2 hours ago',
-      wordCount: '2.4k words',
-      coverUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop'
-    },
-    {
-      id: '2',
-      title: 'The Silent Automation Protocol',
-      excerpt: 'In the deep neon alleyways of Sector 7, mechanical gears turned without a drop of oil. Maya tightened her grip on the synth-key...',
-      lastEdited: 'Yesterday',
-      wordCount: '1.8k words',
-      coverUrl: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?q=80&w=600&auto=format&fit=crop'
-    },
-    {
-      id: '3',
-      title: 'Chronicles of the Lost Voyager',
-      excerpt: 'Log entry 402: The oxygen scrubbers are down to 14 percent, yet the view of the twin supernovas makes it almost tolerable...',
-      lastEdited: '3 days ago',
-      wordCount: '950 words',
-      coverUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=600&auto=format&fit=crop'
-    }
-  ]);
+  // Live user & role state
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [showBecomeAuthorModal, setShowBecomeAuthorModal] = useState<boolean>(false);
+  const [authorForm, setAuthorForm] = useState({
+    birthDate: '',
+    bio: '',
+    reason: ''
+  });
+  const [isSubmittingAuthor, setIsSubmittingAuthor] = useState<boolean>(false);
+  const [authorModalError, setAuthorModalError] = useState<string | null>(null);
 
-  // Mock published stories state
-  const [publishedStories] = useState<Story[]>([
-    {
-      id: 'p1',
-      title: 'Echoes of the Quantum Horizon',
-      subtitle: 'Part I of the Quantum Horizon Saga',
-      excerpt: 'A deep dive into the theoretical boundaries of sub-atomic transmission and conscious memory storage across interstellar networks.',
-      publishedDate: '12 May 2026',
-      readingTime: '8 min read',
-      genre: 'Sci-Fi',
-      rating: 4.9,
-      views: 14200,
-      likes: 1800,
-      coverImage: 'https://images.unsplash.com/photo-1507499739999-097706ad8914?q=80&w=600&auto=format&fit=crop',
-      contentSample: []
-    },
-    {
-      id: 'p2',
-      title: 'The Cybernetic Guild: Chapter 1',
-      subtitle: 'Chapter 1: The Breach',
-      excerpt: 'When neon light reflects off rainy cobblestones in the cyber district, rogue hacker Kaelen plans the ultimate system breach.',
-      publishedDate: '28 Apr 2026',
-      readingTime: '12 min read',
-      genre: 'Cyberpunk',
-      rating: 4.8,
-      views: 8900,
-      likes: 950,
-      coverImage: 'https://images.unsplash.com/photo-1515260268569-9271009adfdb?q=80&w=600&auto=format&fit=crop',
-      contentSample: []
-    },
-    {
-      id: 'p3',
-      title: 'Shadows of the Solitary Kingdom',
-      subtitle: 'Volume II: Monarchs & Burden',
-      excerpt: 'An epic tale of forgotten realms, ancient swords, and monarchs whose crowns carried burdens far heavier than gold.',
-      publishedDate: '14 Mar 2026',
-      readingTime: '15 min read',
-      genre: 'Fantasy',
-      rating: 4.95,
-      views: 22500,
-      likes: 3100,
-      coverImage: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop',
-      isEditorChoice: true,
-      contentSample: []
+  // Live state from API
+  const [drafts, setDrafts] = useState<DraftItem[]>([]);
+  const [publishedStories, setPublishedStories] = useState<Story[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
+
+  // Handle URL query parameters (e.g., when redirected from Authors page or reading mode)
+  useEffect(() => {
+    if (!router.isReady) return;
+
+    const { storyId, mode, title, author, authorInitial, genre, coverPic, readTime } = router.query;
+    const isReadMode = mode === 'read' || mode === 'preview';
+
+    // If storyId is present, attempt to fetch fresh story details or use query params
+    if (storyId) {
+      const loadStoryById = async () => {
+        try {
+          const res = await getSingleStory(String(storyId));
+          if (res && res.story) {
+            const st = res.story;
+            const isAuthor = currentUser ? currentUser.id === st.author_id : false;
+            setInitialStoryData({
+              id: String(st.id),
+              title: st.title || 'Untitled Story',
+              content: st.description || '',
+              genre: st.genre || 'General',
+              coverPic: st.cover_pic || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80',
+              authorName: st.author_name || (typeof author === 'string' ? author : 'Author'),
+              authorInitial: st.author_name ? st.author_name.charAt(0).toUpperCase() : (typeof authorInitial === 'string' ? authorInitial : 'A'),
+              readTime: st.read_time || (typeof readTime === 'string' ? readTime : '~3 min'),
+              isReadOnly: isReadMode || !isAuthor
+            });
+            setActiveView('editor');
+            return;
+          }
+        } catch (e) {
+          console.warn('Could not fetch story by ID, falling back to query data:', e);
+        }
+
+        // Fallback to query parameters if getSingleStory fails or for static/mock data
+        if (title) {
+          setInitialStoryData({
+            id: String(storyId),
+            title: typeof title === 'string' ? title : '',
+            content: '',
+            genre: typeof genre === 'string' ? genre : 'General',
+            coverPic: typeof coverPic === 'string' ? coverPic : undefined,
+            authorName: typeof author === 'string' ? author : 'Author',
+            authorInitial: typeof authorInitial === 'string' ? authorInitial : 'A',
+            readTime: typeof readTime === 'string' ? readTime : '~3 min',
+            isReadOnly: isReadMode
+          });
+          setActiveView('editor');
+        }
+      };
+
+      loadStoryById();
     }
-  ]);
+  }, [router.isReady, router.query, currentUser]);
+
+  // Fetch author drafts and published stories from backend
+  const loadAuthorStories = async (userRole?: string) => {
+    // If role is reader, do not call author-restricted APIs
+    const activeRole = userRole || currentUser?.role;
+    if (activeRole && activeRole !== 'author') {
+      setIsLoadingData(false);
+      return;
+    }
+
+    try {
+      setIsLoadingData(true);
+      
+      // Fetch drafts
+      try {
+        const draftsRes = await getMyDrafts();
+        if (draftsRes && draftsRes.drafts) {
+          const mappedDrafts: DraftItem[] = draftsRes.drafts.map((d: StoryItem) => {
+            const plainDesc = (d.description || '').replace(/<[^>]*>/g, ' ').trim();
+            const wordCount = plainDesc.split(/\s+/).filter(Boolean).length;
+            const formattedDate = d.updated_at
+              ? new Date(d.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+              : 'Recent';
+
+            return {
+              id: String(d.id),
+              authorId: d.author_id,
+              title: d.title || 'Untitled Draft',
+              excerpt: plainDesc,
+              lastEdited: formattedDate,
+              wordCount: `${wordCount} words`,
+              coverUrl: d.cover_pic || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop'
+            };
+          });
+          setDrafts(mappedDrafts);
+        }
+      } catch (err) {
+        console.warn("Could not load author drafts:", err);
+      }
+
+      // Fetch published stories
+      try {
+        const pubRes = await getMyPublishedStories();
+        if (pubRes && pubRes.stories) {
+          const mappedPublished: Story[] = pubRes.stories.map((s: StoryItem) => {
+            const plainDesc = (s.description || '').replace(/<[^>]*>/g, ' ').trim();
+            const paragraphs = plainDesc.split('\n\n').filter(Boolean);
+            return {
+              id: String(s.id),
+              title: s.title || 'Untitled Story',
+              subtitle: s.genre ? `${s.genre} Chronicle` : 'Published Story',
+              excerpt: plainDesc.slice(0, 180) + (plainDesc.length > 180 ? '...' : ''),
+              publishedDate: s.created_at
+                ? new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                : 'Recently',
+              readingTime: s.read_time || '~3 min read',
+              genre: s.genre || 'General',
+              rating: 4.9,
+              views: Number(s.reads_count) || 0,
+              likes: Number(s.likes_count) || 0,
+              coverImage: s.cover_pic || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop',
+              isPopular: (Number(s.reads_count) || 0) > 10,
+              contentSample: paragraphs.length > 0 ? paragraphs.slice(0, 3) : [plainDesc]
+            };
+          });
+          setPublishedStories(mappedPublished);
+        }
+      } catch (err) {
+        console.warn("Could not load published stories:", err);
+      }
+
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
+  // Check current user profile & role, and only load stories if author
+  useEffect(() => {
+    const initPage = async () => {
+      try {
+        const userRes = await me();
+        if (userRes && userRes.user) {
+          setCurrentUser(userRes.user);
+          if (userRes.user.role === 'reader') {
+            setShowBecomeAuthorModal(true);
+            setIsLoadingData(false);
+          } else if (userRes.user.role === 'author') {
+            loadAuthorStories('author');
+          }
+        } else {
+          setIsLoadingData(false);
+        }
+      } catch (err) {
+        console.warn("Could not retrieve current user profile:", err);
+        setIsLoadingData(false);
+      }
+    };
+
+    initPage();
+  }, []);
+
+  const handleBecomeAuthorSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!authorForm.birthDate) {
+      setAuthorModalError("Please select your birth date");
+      return;
+    }
+
+    try {
+      setIsSubmittingAuthor(true);
+      setAuthorModalError(null);
+      
+      const res = await becomeAuthor({
+        birthDate: authorForm.birthDate,
+        bio: authorForm.bio || undefined,
+        reason: authorForm.reason || undefined
+      });
+
+      if (res && res.user) {
+        setCurrentUser(res.user);
+      }
+      setShowBecomeAuthorModal(false);
+      loadAuthorStories();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to become an author. Please try again.";
+      setAuthorModalError(msg);
+    } finally {
+      setIsSubmittingAuthor(false);
+    }
+  };
 
   // Upload file state
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{ name: string; size: string; content: string } | null>(null);
 
   const handleStartNew = () => {
-    setInitialStoryData(null);
-    setActiveView('editor');
+    router.push('/createNew');
   };
 
   const handleOpenDraft = (draft: DraftItem) => {
-    setInitialStoryData({
-      title: draft.title,
-      content: draft.excerpt
-    });
-    setActiveView('editor');
+    router.push(`/updateDraft/${draft.id}`);
   };
 
-  const handleDeleteDraft = (id: string, e: React.MouseEvent) => {
+  const handleDeleteDraft = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setDrafts(prev => prev.filter(d => d.id !== id));
+    try {
+      await deleteStory(id);
+      setDrafts(prev => prev.filter(d => d.id !== id));
+    } catch (error) {
+      console.error("Failed to delete draft:", error);
+      setDrafts(prev => prev.filter(d => d.id !== id));
+    }
   };
 
   const handleFileDrop = (e: React.DragEvent) => {
@@ -260,53 +407,19 @@ export default function CreateStoryPage() {
   if (activeView === 'editor') {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-        {/* Unified Studio & Editor Header */}
-        <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
-          {/* Left: Branding & Status */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-[8px] bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 font-bold shadow-lg shadow-amber-500/20">
-                <IconSparkles className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-                  Pro-Read Creator Studio
-                </h1>
-                <div className="flex items-center space-x-2 text-xs text-slate-400 font-medium">
-                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span>Draft saved 2 mins ago</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right: Actions (Save, Publish, Bell, Back to Hub) */}
-          <div className="flex items-center space-x-2.5 sm:space-x-3">
-            <button 
-              className="flex items-center justify-center space-x-2 px-5 py-2 text-xs font-semibold tracking-wider text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-700/60 hover:border-slate-600 rounded-[5px] transition-all duration-200 active:scale-95 shadow-sm cursor-pointer"
-            >
-              <Save className="w-4 h-4 text-slate-400" />
-              <span>SAVE DRAFT</span>
-            </button>
-
-            <button 
-              className="flex items-center justify-center space-x-2 px-5 py-2 text-xs font-semibold tracking-wider text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 border border-transparent rounded-[5px] shadow-lg shadow-purple-900/30 hover:shadow-purple-700/40 transition-all duration-200 active:scale-95 cursor-pointer"
-            >
-              <Send className="w-4 h-4" />
-              <span>PUBLISH</span>
-            </button>
-
-            <button 
-              onClick={() => setActiveView('hub')}
-              title="Back to Hub"
-              className="flex items-center justify-center p-2 text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-700/60 hover:border-slate-600 rounded-[5px] transition-all duration-200 active:scale-95 shadow-sm cursor-pointer"
-            >
-              <ArrowLeft className="w-4 h-4 text-slate-400" />
-            </button>
-          </div>
-        </header>
-
-        <CreateStoryComponent />
+        <CreateStoryComponent 
+          initialStoryData={initialStoryData}
+          onBackToHub={() => {
+            setActiveView('hub');
+            loadAuthorStories('author');
+          }}
+          onStorySaved={(savedStory, isPublished) => {
+            loadAuthorStories('author');
+            if (isPublished) {
+              setTimeout(() => setActiveView('hub'), 1500);
+            }
+          }}
+        />
       </div>
     );
   }
@@ -459,21 +572,52 @@ export default function CreateStoryPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {publishedStories.map((story) => (
-              <StoryCard
-                key={story.id}
-                story={story}
-                onSelectPreview={() => {
-                  setInitialStoryData({
-                    title: story.title,
-                    content: story.excerpt
-                  });
-                  setActiveView('editor');
-                }}
-              />
-            ))}
-          </div>
+          {publishedStories.length === 0 ? (
+            <div className="relative py-14 px-6 rounded-2xl bg-gradient-to-b from-emerald-950/20 via-slate-950/40 to-slate-900/60 border border-emerald-500/15 overflow-hidden text-center flex flex-col items-center justify-center">
+              {/* Ambient Glow */}
+              <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+              
+              {/* Dual-layered Icon */}
+              <div className="relative mb-5">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-900/50 to-slate-800 border border-emerald-500/30 flex items-center justify-center shadow-lg shadow-emerald-950/50 text-emerald-400">
+                  <IconBooks className="w-8 h-8 opacity-85" />
+                </div>
+                <div className="absolute -bottom-1 -right-1 p-1 rounded-full bg-slate-900 border border-emerald-500/30 text-emerald-400">
+                  <Sparkles className="w-3.5 h-3.5" />
+                </div>
+              </div>
+
+              {/* Text Information */}
+              <h4 className="text-lg font-bold text-white mb-1.5 tracking-tight">
+                No Published Stories Yet
+              </h4>
+              <p className="text-xs sm:text-sm text-slate-400 max-w-md mb-6 leading-relaxed">
+                You haven&apos;t published any stories yet. Write your thoughts, craft compelling narratives, and share your voice with the world.
+              </p>
+
+              {/* Action Button */}
+              <button 
+                onClick={handleStartNew}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+              >
+                <PenTool className="w-3.5 h-3.5" />
+                <span>Write &amp; Publish Your First Story</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {publishedStories.map((story) => (
+                <StoryCard
+                  key={story.id}
+                  story={story}
+                  onSelectPreview={() => {
+                    router.push(`/readStory/${story.id}`);
+                  }}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </main>
 
@@ -508,14 +652,36 @@ export default function CreateStoryPage() {
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto space-y-4 flex-1">
               {drafts.length === 0 ? (
-                <div className="text-center py-12 space-y-3">
-                  <File className="w-12 h-12 text-slate-600 mx-auto" />
-                  <p className="text-slate-400 text-sm">No drafts found.</p>
+                <div className="relative py-12 px-6 rounded-2xl bg-gradient-to-b from-purple-950/20 via-slate-950/40 to-slate-900/60 border border-purple-500/15 overflow-hidden text-center flex flex-col items-center justify-center">
+                  {/* Subtle Ambient Glow */}
+                  <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
+                  
+                  {/* Icon with glowing animated ring */}
+                  <div className="relative mb-5">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-900/50 to-slate-800 border border-purple-500/30 flex items-center justify-center shadow-lg shadow-purple-950/50 text-purple-300">
+                      <FileText className="w-8 h-8 opacity-80" />
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 p-1 rounded-full bg-slate-900 border border-purple-500/30 text-purple-400">
+                      <Sparkles className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+
+                  {/* Empty state title & description */}
+                  <h4 className="text-lg font-bold text-white mb-1.5 tracking-tight">
+                    No Drafts Available
+                  </h4>
+                  <p className="text-xs sm:text-sm text-slate-400 max-w-sm mb-6 leading-relaxed">
+                    You haven&apos;t saved any unfinished stories yet. Start writing something new and your progress will appear here.
+                  </p>
+
+                  {/* Primary Action Button */}
                   <button 
                     onClick={handleStartNew}
-                    className="px-4 py-2 bg-amber-500 text-slate-950 text-xs font-bold rounded-xl hover:bg-amber-400 transition-colors inline-block"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
                   >
-                    Start a New Story
+                    <PenTool className="w-3.5 h-3.5" />
+                    <span>Create Your First Story</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
               ) : (
@@ -681,6 +847,127 @@ export default function CreateStoryPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+         MODAL 3: JOIN AS AUTHOR MODAL (Prompted when a Reader accesses Create Story)
+         ========================================================================= */}
+      {showBecomeAuthorModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-gradient-to-b from-slate-900 via-slate-900 to-[#0c1222] border border-amber-500/20 w-full max-w-lg rounded-2xl shadow-2xl shadow-amber-500/10 overflow-hidden relative">
+            {/* Ambient Top Glow */}
+            <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-64 h-32 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-800/80 flex items-start justify-between relative">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 flex items-center justify-center shadow-lg shadow-amber-500/20">
+                  <Feather className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                    Join as Author
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300">
+                      Creator Studio
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Unlock full publishing tools, rich text studio, and build your readership.
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowBecomeAuthorModal(false)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800/80 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Form Body */}
+            <form onSubmit={handleBecomeAuthorSubmit} className="p-6 space-y-4">
+              {authorModalError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{authorModalError}</span>
+                </div>
+              )}
+
+              {/* Birth Date (Required) */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Birth Date <strong className="text-amber-400">*</strong></span>
+                </label>
+                <input 
+                  type="date"
+                  required
+                  value={authorForm.birthDate}
+                  onChange={(e) => setAuthorForm(prev => ({ ...prev, birthDate: e.target.value }))}
+                  className="w-full bg-slate-950/80 border border-slate-800 focus:border-amber-500 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all [color-scheme:dark]"
+                />
+              </div>
+
+              {/* Author Bio */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <PenTool className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Author Bio / Tagline</span>
+                </label>
+                <textarea 
+                  rows={2}
+                  placeholder="e.g. Exploring cosmic sci-fi, dark academia, and atmospheric sagas..."
+                  value={authorForm.bio}
+                  onChange={(e) => setAuthorForm(prev => ({ ...prev, bio: e.target.value }))}
+                  className="w-full bg-slate-950/80 border border-slate-800 focus:border-amber-500 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all resize-none"
+                />
+              </div>
+
+              {/* Reason / Title */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Why do you want to publish? / Your Creator Role</span>
+                </label>
+                <input 
+                  type="text"
+                  placeholder="e.g. Fantasy Novelist & Worldbuilder"
+                  value={authorForm.reason}
+                  onChange={(e) => setAuthorForm(prev => ({ ...prev, reason: e.target.value }))}
+                  className="w-full bg-slate-950/80 border border-slate-800 focus:border-amber-500 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800/80">
+                <button 
+                  type="button"
+                  onClick={() => setShowBecomeAuthorModal(false)}
+                  className="px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-white rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isSubmittingAuthor || !authorForm.birthDate}
+                  className="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  {isSubmittingAuthor ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Upgrading to Author...</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-4 h-4" />
+                      <span>Join as Author</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

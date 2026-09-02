@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -26,13 +27,15 @@ import {
   Flame,
   X,
   BookMarked,
-  ChevronDown
+  ChevronDown,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/app/Components/ui/Button";
 import { cn } from "@/lib/utils";
 import { AuthorCards } from "./AuthorCards";
 import { HeroSection } from "./HeroSection";
 import { StoryCard } from "./StoryCard";
+import { getAuthors } from "@/app/Service/UserService";
 
 // --- Types ---
 
@@ -76,464 +79,107 @@ export type Author = {
   stories: Story[];
 };
 
-// --- Mock Data ---
-
-const MOCK_AUTHORS: Author[] = [
-  {
-    id: "author-1",
-    name: "Elara Finch",
-    handle: "@elara_finch",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
-    bannerImage: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80",
-    role: "Grandmaster Storyteller",
-    bio: "Weaving cosmic mysteries, dark academic fantasy, and emotional sagas across starlit realms. Hugo & Nebula award-nominated novelist.",
-    location: "Edinburgh, UK",
-    joinedDate: "Member since Jan 2023",
-    verified: true,
-    featured: true,
-    stats: {
-      totalStories: 4,
-      followersCount: 14200,
-      totalReads: "485K",
-      avgRating: 4.9,
-    },
-    genres: ["High Fantasy", "Dark Academia", "Mythos"],
-    achievements: ["Featured Author of the Month", "Top Rated 2025", "100K+ Reads Club"],
-    stories: [
-      {
-        id: "story-101",
-        title: "Moonlit Oath",
-        subtitle: "The Chronicles of the Silver Veil • Book I",
-        excerpt: "When the eclipse turns the tides crimson, a solitary knight must swear an oath to the dark star that bound her ancestors.",
-        coverImage: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80",
-        genre: "High Fantasy",
-        readingTime: "9 min read",
-        rating: 4.9,
-        likes: 2840,
-        views: 45200,
-        publishedDate: "Oct 12, 2025",
-        isPopular: true,
-        isEditorChoice: true,
-        contentSample: [
-          "The night the third moon broke, nobody in the citadel spoke of sanctuary.",
-          "Elara stood at the balcony edge, watching the silver frost creep up the marble gargoyles. Her sword felt heavier than usual, cold against her palm like leaden silence.",
-          "'If you step beyond the boundary, lady of salt,' whispers the keeper, 'there is no road back to the mortal light.'"
-        ]
-      },
-      {
-        id: "story-102",
-        title: "The Celestial Weaver",
-        subtitle: "A Tale of Dreams and Starlight",
-        excerpt: "In a world where stars are spun from the dreams of mortals, a young apprentice discovers a thread that threatens to unravel the universe.",
-        coverImage: "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=600&q=80",
-        genre: "Mythos",
-        readingTime: "14 min read",
-        rating: 4.95,
-        likes: 3120,
-        views: 61800,
-        publishedDate: "Nov 03, 2025",
-        isEditorChoice: true,
-        contentSample: [
-          "Every constellation had a song, though only those born in the indigo tower could hear the lower strings.",
-          "Vaelen held the golden loom with hands hardened by silver dust. One misplaced knot, and a king's legacy would turn to ash by dawn."
-        ]
-      },
-      {
-        id: "story-103",
-        title: "Whispers of the Obsidian Spire",
-        subtitle: "Dark Academia & Arcane Mystery",
-        excerpt: "Inside the forbidden library of Saint Jude, secret societies decipher forbidden manuscripts written in liquid shadow.",
-        coverImage: "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&w=600&q=80",
-        genre: "Dark Academia",
-        readingTime: "11 min read",
-        rating: 4.8,
-        likes: 1940,
-        views: 32900,
-        publishedDate: "Dec 18, 2025",
-        contentSample: [
-          "The scent of old vellum and dried chamomile always heralded professor Vance's arrival.",
-          "Julian turned the page slowly, afraid that the charcoal figures etched in 14th-century ink might shift when he blinked."
-        ]
-      },
-      {
-        id: "story-104",
-        title: "The Glass Sanctuary",
-        subtitle: "Short Gothic Romance",
-        excerpt: "A lonely botanist builds a greenhouse over forgotten ruins, uncovering an ethereal spirit preserved in crystalline amber.",
-        coverImage: "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=600&q=80",
-        genre: "Dark Academia",
-        readingTime: "7 min read",
-        rating: 4.85,
-        likes: 1420,
-        views: 21100,
-        publishedDate: "Jan 10, 2026",
-        contentSample: [
-          "Glass panels rattled under the coastal gale, yet inside the dome, the orchids bloomed in unnatural lavender dusk.",
-          "'He never spoke,' she recorded in her journal. 'He only left footprints made of crushed starlight.'"
-        ]
-      }
-    ]
-  },
-  {
-    id: "author-2",
-    name: "Noah Glass",
-    handle: "@noah_glass_writer",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
-    bannerImage: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80",
-    role: "Sci-Fi & Cyberpunk Pioneer",
-    bio: "Exploring futuristic dystopias, AI consciousness, neon noir thrillers, and post-apocalyptic sagas. Bestselling author of the Sol-9 Universe.",
-    location: "Seattle, USA",
-    joinedDate: "Member since Mar 2023",
-    verified: true,
-    featured: true,
-    stats: {
-      totalStories: 3,
-      followersCount: 11800,
-      totalReads: "390K",
-      avgRating: 4.75,
-    },
-    genres: ["Cyberpunk", "Sci-Fi", "Neon Noir"],
-    achievements: ["Sci-Fi Visionary 2025", "Staff Favorite Pick"],
-    stories: [
-      {
-        id: "story-201",
-        title: "Ashes of Winter",
-        subtitle: "Sol-9 Protocol • Chapter I",
-        excerpt: "When the frost core collapses, a renegade technician must bypass central AI security to reignite humanity's last thermal generator.",
-        coverImage: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=80",
-        genre: "Sci-Fi",
-        readingTime: "16 min read",
-        rating: 4.75,
-        likes: 2410,
-        views: 39800,
-        publishedDate: "Sep 29, 2025",
-        isPopular: true,
-        contentSample: [
-          "Sub-zero warning indicators flashed in amber across the visor HUD.",
-          "Kael pulled the insulated gloves tight. 'If the reactor doesn't pulse in six minutes, Sector 4 turns to solid nitrogen.'"
-        ]
-      },
-      {
-        id: "story-202",
-        title: "Neon Horizon 2099",
-        subtitle: "Neural Cybernetics Saga",
-        excerpt: "In a rain-slicked metropolis ruled by megacorps, a rogue hacker recovers a memory chip containing a dead founder's soul.",
-        coverImage: "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?auto=format&fit=crop&w=600&q=80",
-        genre: "Cyberpunk",
-        readingTime: "12 min read",
-        rating: 4.88,
-        likes: 3890,
-        views: 52400,
-        publishedDate: "Nov 20, 2025",
-        isEditorChoice: true,
-        contentSample: [
-          "Holographic billboards projected synthetic rain over the lower decks.",
-          "Rin plugged the neural jack straight into her optic port. The torrent of encrypted data burned like liquid electricity."
-        ]
-      },
-      {
-        id: "story-203",
-        title: "Echoes of the Void",
-        subtitle: "Deep Space Mystery",
-        excerpt: "A deep-space salvage vessel picks up an ancient automated signal emitting from an abandoned Dyson sphere.",
-        coverImage: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=600&q=80",
-        genre: "Sci-Fi",
-        readingTime: "18 min read",
-        rating: 4.7,
-        likes: 1750,
-        views: 28900,
-        publishedDate: "Dec 05, 2025",
-        contentSample: [
-          "The radar screen beeped with rhythm too exact for natural cosmic decay.",
-          "'Cap, that ship left Earth's orbit seventy years before warp drives were invented... yet its engines are idling.'"
-        ]
-      }
-    ]
-  },
-  {
-    id: "author-3",
-    name: "Ira Bloom",
-    handle: "@ira_bloom",
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80",
-    bannerImage: "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1200&q=80",
-    role: "Literary Fiction & Mystery Specialist",
-    bio: "Crafting atmospheric mysteries, environmental fables, and deep character portraits set along forgotten waters.",
-    location: "Vancouver, Canada",
-    joinedDate: "Member since May 2023",
-    verified: true,
-    stats: {
-      totalStories: 3,
-      followersCount: 8900,
-      totalReads: "260K",
-      avgRating: 4.8,
-    },
-    genres: ["Mystery", "Literary", "Atmospheric"],
-    achievements: ["Storyteller's Guild Choice 2025"],
-    stories: [
-      {
-        id: "story-301",
-        title: "The River Archive",
-        subtitle: "Secrets Beneath the Current",
-        excerpt: "An archivist finds letters sealed in wax floating down the misty river every midnight, foretelling events before they happen.",
-        coverImage: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80",
-        genre: "Mystery",
-        readingTime: "11 min read",
-        rating: 4.8,
-        likes: 2150,
-        views: 31000,
-        publishedDate: "Oct 24, 2025",
-        isPopular: true,
-        contentSample: [
-          "The water tasted of iron and pine needles.",
-          "Every bottle fished out of the black tide bore the same wax seal—a hummingbird clutching a clock gear."
-        ]
-      },
-      {
-        id: "story-302",
-        title: "Tides of Solitude",
-        subtitle: "Lighthouse Chronicles",
-        excerpt: "Living alone on an isolated rock, a lighthouse keeper discovers an amphibious companion who speaks through sea glass melodies.",
-        coverImage: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=600&q=80",
-        genre: "Literary",
-        readingTime: "15 min read",
-        rating: 4.9,
-        likes: 1890,
-        views: 26400,
-        publishedDate: "Nov 15, 2025",
-        contentSample: [
-          "Foghorns wailed in pairs across the reef.",
-          "He arranged the blue glass beads along the windowsill. Outside, gentle ripples sparkled under phosphorescent algae."
-        ]
-      },
-      {
-        id: "story-303",
-        title: "The Fog Collector",
-        subtitle: "Mountain Tale of Forgotten Memories",
-        excerpt: "High in the misty highlands, an elder harvests cloud condensation to distill forgotten childhood memories into crystal bottles.",
-        coverImage: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80",
-        genre: "Atmospheric",
-        readingTime: "8 min read",
-        rating: 4.78,
-        likes: 1430,
-        views: 19800,
-        publishedDate: "Dec 30, 2025",
-        contentSample: [
-          "The copper nets strained against the dawn breeze.",
-          "'One sip,' the old collector warned, 'and you will remember your first laugh, but lose the sound of your mother's name.'"
-        ]
-      }
-    ]
-  },
-  {
-    id: "author-4",
-    name: "Reed Nolan",
-    handle: "@reed_nolan_books",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80",
-    bannerImage: "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1200&q=80",
-    role: "Urban Thriller & Noir Specialist",
-    bio: "Pacing gripping suspense, psychological thrillers, and razor-sharp noir fiction that keeps readers turning pages till dawn.",
-    location: "New York, USA",
-    joinedDate: "Member since Aug 2023",
-    verified: true,
-    stats: {
-      totalStories: 3,
-      followersCount: 16500,
-      totalReads: "510K",
-      avgRating: 4.92,
-    },
-    genres: ["Thriller", "Noir", "Mystery"],
-    achievements: ["#1 Trending Author", "Pro-Read Gold Badge"],
-    stories: [
-      {
-        id: "story-401",
-        title: "Glass Orchard",
-        subtitle: "The Manhattan Conspiracy",
-        excerpt: "An investigative reporter uncovers a secret garden inside a skyscraper penthouse where high-stakes blackmail is cultivated.",
-        coverImage: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=600&q=80",
-        genre: "Thriller",
-        readingTime: "7 min read",
-        rating: 5.0,
-        likes: 4200,
-        views: 68400,
-        publishedDate: "Nov 02, 2025",
-        isPopular: true,
-        isEditorChoice: true,
-        contentSample: [
-          "Rain streaked the 60th-floor floor-to-ceiling glass.",
-          "The file contained seven names. Three were senators, two were tech titans, and the last was the detective who arrested my father."
-        ]
-      },
-      {
-        id: "story-402",
-        title: "Midnight Cipher",
-        subtitle: "Underground Hacker War",
-        excerpt: "When encrypted code starts appearing in daily subway tickets, a codebreaker realizes a subterranean syndicate is planning a citywide blackout.",
-        coverImage: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80",
-        genre: "Noir",
-        readingTime: "13 min read",
-        rating: 4.88,
-        likes: 3100,
-        views: 47200,
-        publishedDate: "Dec 12, 2025",
-        contentSample: [
-          "The neon sign flickered: 24-HOUR DONUTS.",
-          "I held the yellow subway stub up to the streetlamp. Embedded in the magnetic strip was a 256-bit private key."
-        ]
-      },
-      {
-        id: "story-403",
-        title: "Silent Echo",
-        subtitle: "Psychological Suspense",
-        excerpt: "A sleep therapist discovers her patients are all dreaming about the exact same non-existent apartment on 5th Avenue.",
-        coverImage: "https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=600&q=80",
-        genre: "Thriller",
-        readingTime: "10 min read",
-        rating: 4.86,
-        likes: 2750,
-        views: 38900,
-        publishedDate: "Jan 04, 2026",
-        contentSample: [
-          "The audio recorder clicked to a halt.",
-          "'Room 4B,' patient twelve whispered in her trance. 'The wallpaper has golden peacocks, and the grandfather clock stops at 3:17 AM.'"
-        ]
-      }
-    ]
-  },
-  {
-    id: "author-5",
-    name: "Mina Kade",
-    handle: "@mina_kade",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
-    bannerImage: "https://images.unsplash.com/photo-1511497584788-8767614657ed?auto=format&fit=crop&w=1200&q=80",
-    role: "Poetic Fantasy & Romance Author",
-    bio: "Writing velvety prose, romantic folklore, and epic voyages through enchanted forests and forgotten kingdoms.",
-    location: "Melbourne, Australia",
-    joinedDate: "Member since Feb 2024",
-    verified: false,
-    stats: {
-      totalStories: 2,
-      followersCount: 6400,
-      totalReads: "180K",
-      avgRating: 4.85,
-    },
-    genres: ["High Fantasy", "Romance", "Folklore"],
-    achievements: ["Rising Star 2025"],
-    stories: [
-      {
-        id: "story-501",
-        title: "Wanderers of Dawn",
-        subtitle: "The Sunlit Kingdom • Book I",
-        excerpt: "Two rival cartographers are forced to map a mythical island that shifts location with every moonrise.",
-        coverImage: "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=600&q=80",
-        genre: "High Fantasy",
-        readingTime: "14 min read",
-        rating: 4.87,
-        likes: 2980,
-        views: 41000,
-        publishedDate: "Nov 28, 2025",
-        isPopular: true,
-        contentSample: [
-          "The compass needle spun erratically like a trapped dragonfly.",
-          "'If we don't drop anchor before the fourth bell,' Mina warned, 'the shoreline will dissolve into cloud dust.'"
-        ]
-      },
-      {
-        id: "story-502",
-        title: "Letters from Halcyon",
-        subtitle: "Epistolary Romance & Magic",
-        excerpt: "An emotional powerhouse following two star-crossed lovers who communicate only through enchanted letters carried by white falcons.",
-        coverImage: "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=600&q=80",
-        genre: "Romance",
-        readingTime: "12 min read",
-        rating: 4.93,
-        likes: 3450,
-        views: 49800,
-        publishedDate: "Dec 22, 2025",
-        isEditorChoice: true,
-        contentSample: [
-          "My dearest Cassian,",
-          "The snow has reached the windowsill in Halcyon. The falcon arrived at midnight with your ribbon... I read your words four times by candlelight."
-        ]
-      }
-    ]
-  },
-  {
-    id: "author-6",
-    name: "Julian Vance",
-    handle: "@julian_vance_words",
-    avatar: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=400&q=80",
-    bannerImage: "https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=1200&q=80",
-    role: "Senior Editor & Historical Fiction Specialist",
-    bio: "Unearthing forgotten historical events, wartime sagas, and intricate palace intrigue set across ancient civilizations.",
-    location: "Vienna, Austria",
-    joinedDate: "Member since Oct 2022",
-    verified: true,
-    stats: {
-      totalStories: 2,
-      followersCount: 19800,
-      totalReads: "620K",
-      avgRating: 4.91,
-    },
-    genres: ["Historical", "Dark Academia", "Intrigue"],
-    achievements: ["Senior Editor", "Masterclass Lecturer", "Pro-Read Pioneer"],
-    stories: [
-      {
-        id: "story-601",
-        title: "The Silk Alchemist",
-        subtitle: "16th Century Venice Intrigue",
-        excerpt: "In Renaissance Venice, a master weaver crafts silk dyed with secret remedies capable of curing diseases—or silencing doges.",
-        coverImage: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80",
-        genre: "Historical",
-        readingTime: "20 min read",
-        rating: 4.94,
-        likes: 3890,
-        views: 59000,
-        publishedDate: "Aug 14, 2025",
-        isEditorChoice: true,
-        contentSample: [
-          "Gondolas cut quietly through the dark waters of the Grand Canal.",
-          "The crimson dye spilled across the counter like pomegranate juice. Inside the pigment were ground ruby dust and nightshade roots."
-        ]
-      },
-      {
-        id: "story-602",
-        title: "Empire of Shadows",
-        subtitle: "The Fall of Byzantium",
-        excerpt: "A scholar races through burning libraries during the siege of 1453 to save the world's last copy of lost Greek philosophies.",
-        coverImage: "https://images.unsplash.com/photo-1461360370896-922624d12aa1?auto=format&fit=crop&w=600&q=80",
-        genre: "Historical",
-        readingTime: "17 min read",
-        rating: 4.88,
-        likes: 2950,
-        views: 43200,
-        publishedDate: "Nov 19, 2025",
-        contentSample: [
-          "Smoke smelled of burning cypress wood and melted binding resin.",
-          "Leo embraced the leather satchel like a child. 'If these scrolls perish,' he declared, 'a thousand years of light go out with them.'"
-        ]
-      }
-    ]
-  }
-];
-
 const ALL_GENRES = ["All", "High Fantasy", "Cyberpunk", "Dark Academia", "Sci-Fi", "Mystery", "Thriller", "Romance", "Historical"];
 
 // --- Component Definition ---
 
 export default function AuthorsComponent() {
+  const router = useRouter();
+  const [authors, setAuthors] = useState<Author[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedAuthor, setSelectedAuthor] = useState<Author | null>(null);
   const [selectedStoryPreview, setSelectedStoryPreview] = useState<Story | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedGenreFilter, setSelectedGenreFilter] = useState<string>("All");
-  const [followedAuthors, setFollowedAuthors] = useState<Record<string, boolean>>({
-    "author-1": true,
-    "author-4": false
-  });
+  const [followedAuthors, setFollowedAuthors] = useState<Record<string, boolean>>({});
   const [bookmarkedStories, setBookmarkedStories] = useState<Record<string, boolean>>({});
+
+  // Fetch real authors from backend API via getAuthors service
+  useEffect(() => {
+    const loadAuthors = async () => {
+      try {
+        setIsLoading(true);
+        const data = await getAuthors();
+
+        if (data && data.authors && data.authors.length > 0) {
+          const mappedAuthors: Author[] = data.authors.map((dbAuthor, idx) => {
+            const formattedStories: Story[] = (dbAuthor.stories || []).map((s) => {
+              const plainDesc = (s.description || "").replace(/<[^>]*>/g, " ").trim();
+              const paragraphs = plainDesc.split("\n\n").filter(Boolean);
+              return {
+                id: String(s.id),
+                title: s.title || "Untitled Story",
+                subtitle: s.genre ? `${s.genre} Chronicle` : "Featured Saga",
+                excerpt: plainDesc.slice(0, 180) + (plainDesc.length > 180 ? "..." : ""),
+                coverImage: s.cover_pic || "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80",
+                genre: s.genre || "General",
+                readingTime: s.read_time || "~3 min read",
+                rating: 4.8 + ((s.id % 3) * 0.1),
+                likes: Number(s.likes_count) || 0,
+                views: Number(s.reads_count) || 0,
+                publishedDate: s.created_at
+                  ? new Date(s.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                  : "Recently",
+                isPopular: (Number(s.reads_count) || 0) > 10,
+                isEditorChoice: idx === 0,
+                contentSample: paragraphs.length > 0 ? paragraphs.slice(0, 3) : [plainDesc]
+              };
+            });
+
+            // Extract unique genres from stories
+            const authorGenres = Array.from(new Set(formattedStories.map((s) => s.genre).filter(Boolean)));
+            if (authorGenres.length === 0) authorGenres.push("Fiction", "Literature");
+
+            const formattedReads = Number(dbAuthor.total_reads_count) >= 1000
+              ? `${(Number(dbAuthor.total_reads_count) / 1000).toFixed(1)}K`
+              : `${Number(dbAuthor.total_reads_count) || 0}`;
+
+            const joinYear = dbAuthor.created_at
+              ? new Date(dbAuthor.created_at).toLocaleDateString("en-US", { month: "short", year: "numeric" })
+              : "Jan 2026";
+
+            return {
+              id: String(dbAuthor.id),
+              name: dbAuthor.name,
+              handle: `@${(dbAuthor.name || "author").toLowerCase().replace(/\s+/g, "_")}`,
+              avatar: dbAuthor.profile_pic || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(dbAuthor.name)}`,
+              bannerImage: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80",
+              role: dbAuthor.reason || "Master Author & Creator",
+              bio: dbAuthor.bio || "Crafting stories, sharing wisdom, and building worlds across prose and verse.",
+              location: "Verified Author",
+              joinedDate: `Member since ${joinYear}`,
+              verified: Boolean(dbAuthor.is_verified) || true,
+              featured: idx === 0,
+              stats: {
+                totalStories: Number(dbAuthor.total_stories_count) || formattedStories.length,
+                followersCount: 1200 + (idx * 340),
+                totalReads: formattedReads,
+                avgRating: 4.85
+              },
+              genres: authorGenres,
+              achievements: ["Grand Storyteller", "Prolific Author", "Community Champion"],
+              stories: formattedStories
+            };
+          });
+
+          setAuthors(mappedAuthors);
+        } else {
+          setAuthors([]);
+        }
+      } catch (err) {
+        console.error("Failed to load authors from API:", err);
+        setAuthors([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadAuthors();
+  }, []);
 
   // Filtered authors based on search and genre filter
   const filteredAuthors = useMemo(() => {
-    return MOCK_AUTHORS.filter((author) => {
+    return authors.filter((author) => {
       const matchesSearch =
         author.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         author.handle.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -548,7 +194,7 @@ export default function AuthorsComponent() {
 
       return matchesSearch && matchesGenre;
     });
-  }, [searchQuery, selectedGenreFilter]);
+  }, [authors, searchQuery, selectedGenreFilter]);
 
   const toggleFollow = (authorId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -567,7 +213,23 @@ export default function AuthorsComponent() {
   };
 
   // Featured author highlight
-  const featuredAuthor = MOCK_AUTHORS.find((a) => a.featured) || MOCK_AUTHORS[0];
+  const featuredAuthor = authors.find((a) => a.featured) || authors[0] || null;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#090f1d] flex flex-col items-center justify-center p-6 text-[#E1E2E7] space-y-4">
+        <div className="relative">
+          <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center animate-pulse text-indigo-400">
+            <BookMarked className="w-7 h-7" />
+          </div>
+          <Loader2 className="w-6 h-6 text-indigo-400 animate-spin absolute -bottom-2 -right-2" />
+        </div>
+        <p className="text-sm font-medium text-slate-400 animate-pulse tracking-wide">
+          Loading Pro-Read Authors...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#090f1d] text-[#E1E2E7] p-4 sm:p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
@@ -586,11 +248,13 @@ export default function AuthorsComponent() {
             className="space-y-8"
           >
             {/* Header Hero Section */}
-            <HeroSection
-              totalAuthors={MOCK_AUTHORS.length}
-              featuredAuthor={featuredAuthor}
-              onSelectAuthor={setSelectedAuthor}
-            />
+            {featuredAuthor && (
+              <HeroSection
+                totalAuthors={authors.length}
+                featuredAuthor={featuredAuthor}
+                onSelectAuthor={setSelectedAuthor}
+              />
+            )}
 
             {/* Search & Genre Filter Toolbar */}
             <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-[#0b1223]/80 p-4 rounded-xl border border-white/10 shadow-lg">
@@ -938,10 +602,13 @@ export default function AuthorsComponent() {
                   </Button>
                   <Button
                     onClick={() => {
-                      alert(`Opening full reader view for "${selectedStoryPreview.title}"...`);
-                      setSelectedStoryPreview(null);
+                      if (selectedStoryPreview) {
+                        const storyId = selectedStoryPreview.id;
+                        setSelectedStoryPreview(null);
+                        router.push(`/readStory/${storyId}`);
+                      }
                     }}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-4"
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-4 cursor-pointer"
                   >
                     Start Full Reading
                   </Button>

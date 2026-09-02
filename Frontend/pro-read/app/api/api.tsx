@@ -41,6 +41,10 @@ axiosInstance.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // If body is FormData, delete default Content-Type so browser sets boundary automatically
+    if (typeof window !== "undefined" && config.data instanceof FormData && config.headers) {
+      delete config.headers["Content-Type"];
+    }
     return config;
   },
   (error) => Promise.reject(error)
@@ -50,6 +54,9 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error: AxiosError<{ message?: string }>) => {
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      clearAuthToken();
+    }
     const message =
       error.response?.data?.message ||
       error.message ||

@@ -5,6 +5,7 @@ import {
 import {
   findUserByEmail,
   findUserById,
+  getAllAuthorsWithStories,
   updateUserProfile,
   updateUserRoleToAuthor
 } from "../models/userModel.js";
@@ -148,16 +149,21 @@ export const getUserProfile = async (req, res) => {
       genresCount: 5
     };
 
-    // Automatically evaluate rules & unlock eligible achievements for user
-    await evaluateAndAwardAchievements(userId, {
-      booksRead: readingStats.booksReadThisYear,
-      dayStreak: readingStats.dayStreak,
-      hoursImmersed: readingStats.hoursImmersed,
-      reviewsCount: readingStats.reviewsCount,
-      genresCount: readingStats.genresCount
-    });
+    let userUnlockedAchievements = [];
+    try {
+      // Automatically evaluate rules & unlock eligible achievements for user
+      await evaluateAndAwardAchievements(userId, {
+        booksRead: readingStats.booksReadThisYear,
+        dayStreak: readingStats.dayStreak,
+        hoursImmersed: readingStats.hoursImmersed,
+        reviewsCount: readingStats.reviewsCount,
+        genresCount: readingStats.genresCount
+      });
 
-    const userUnlockedAchievements = await getUserAchievements(userId);
+      userUnlockedAchievements = await getUserAchievements(userId);
+    } catch (achError) {
+      console.error("Error evaluating achievements:", achError.message);
+    }
 
     const profileData = {
       user: {
@@ -186,6 +192,21 @@ export const getUserProfile = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Failed to fetch user profile", error: error.message });
+  }
+};
+
+export const getAuthors = async (req, res) => {
+  try {
+    const authors = await getAllAuthorsWithStories();
+    return res.status(200).json({
+      message: "Authors fetched successfully",
+      count: authors.length,
+      authors
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch authors", error: error.message });
   }
 };
 

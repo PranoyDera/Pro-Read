@@ -14,6 +14,7 @@ export const createAchievementsTable = async () => {
   `;
 
   await pool.query(query);
+  await createUserAchievementsTable();
 };
 
 export const createAchievement = async ({ title, description, rule, icon }) => {
