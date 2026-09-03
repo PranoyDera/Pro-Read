@@ -9,6 +9,7 @@ import {
   updateUserProfile,
   updateUserRoleToAuthor
 } from "../models/userModel.js";
+import { uploadBufferToCloudinary, uploadBase64ToCloudinary } from "../config/cloudinary.js";
 
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const isValidPhoneNumber = (phoneNumber) =>
@@ -17,7 +18,7 @@ const isValidPhoneNumber = (phoneNumber) =>
 export const updateUser = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { name, email, phoneNumber, gender, profilePic, bio, reason, birthDate } = req.body;
+    const { name, email, phoneNumber, gender, profilePic, coverPic, bio, reason, birthDate } = req.body;
 
     const existingUser = await findUserById(userId);
     if (!existingUser) {
@@ -65,7 +66,52 @@ export const updateUser = async (req, res) => {
 
     if (profilePic !== undefined) {
       const trimmedPic = String(profilePic).trim();
-      updates.profilePic = trimmedPic || null;
+      if (trimmedPic.startsWith("data:image/")) {
+        try {
+          const cloudResult = await uploadBase64ToCloudinary(trimmedPic, "profiles");
+          if (cloudResult && cloudResult.secure_url) {
+            updates.profilePic = cloudResult.secure_url;
+          } else {
+            updates.profilePic = trimmedPic;
+          }
+        } catch (cloudErr) {
+          console.error("Cloudinary profilePic upload error:", cloudErr);
+          updates.profilePic = trimmedPic;
+        }
+      } else {
+        updates.profilePic = trimmedPic || null;
+      }
+    }
+
+    if (coverPic !== undefined) {
+      const trimmedCover = String(coverPic).trim();
+      if (trimmedCover.startsWith("data:image/")) {
+        try {
+          const cloudResult = await uploadBase64ToCloudinary(trimmedCover, "covers");
+          if (cloudResult && cloudResult.secure_url) {
+            updates.coverPic = cloudResult.secure_url;
+          } else {
+            updates.coverPic = trimmedCover;
+          }
+        } catch (cloudErr) {
+          console.error("Cloudinary coverPic upload error:", cloudErr);
+          updates.coverPic = trimmedCover;
+        }
+      } else {
+        updates.coverPic = trimmedCover || null;
+      }
+    }
+
+    // Support direct file upload via multipart/form-data for coverPic
+    if (req.file && req.file.buffer) {
+      try {
+        const cloudResult = await uploadBufferToCloudinary(req.file.buffer, "covers");
+        if (cloudResult && cloudResult.secure_url) {
+          updates.coverPic = cloudResult.secure_url;
+        }
+      } catch (cloudErr) {
+        console.error("Cloudinary upload failed for user cover:", cloudErr);
+      }
     }
 
     if (bio !== undefined) {
@@ -128,6 +174,33 @@ export const becomeAuthor = async (req, res) => {
   }
 };
 
+export const uploadCoverImage = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    let coverPicUrl = null;
+
+    if (req.file && req.file.buffer) {
+      const cloudResult = await uploadBufferToCloudinary(req.file.buffer, "covers");
+      coverPicUrl = cloudResult.secure_url;
+    } else if (req.body.coverPic) {
+      coverPicUrl = String(req.body.coverPic).trim();
+    }
+
+    if (!coverPicUrl) {
+      return res.status(400).json({ message: "No cover image provided" });
+    }
+
+    const updatedUser = await updateUserProfile(userId, { coverPic: coverPicUrl });
+    return res.status(200).json({
+      message: "Cover picture updated successfully",
+      coverPic: coverPicUrl,
+      user: updatedUser
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to upload cover picture", error: error.message });
+  }
+};
+
 export const getUserProfile = async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -173,6 +246,7 @@ export const getUserProfile = async (req, res) => {
         phoneNumber: user.phone_number,
         gender: user.gender,
         profilePic: user.profile_pic,
+        coverPic: user.cover_pic,
         role: user.role,
         isVerified: user.is_verified,
         bio: user.bio,

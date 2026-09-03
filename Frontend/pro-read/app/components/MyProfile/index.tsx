@@ -13,6 +13,9 @@ import {
   BookMarked,
   Zap,
   Loader2,
+  Camera,
+  Trash2,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Card, CardContent } from "../ui/Card";
@@ -30,6 +33,7 @@ type ProfileData = {
     phoneNumber?: string;
     gender?: string;
     profilePic?: string | null;
+    coverPic?: string | null;
     role: string;
     isVerified?: boolean;
     bio?: string;
@@ -73,6 +77,9 @@ export default function MyProfileComponent() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+  const [isUploadingCover, setIsUploadingCover] = useState<boolean>(false);
+  const [coverError, setCoverError] = useState<string | null>(null);
+  const coverInputRef = React.useRef<HTMLInputElement>(null);
 
   const fetchProfile = async () => {
     try {
@@ -101,10 +108,81 @@ export default function MyProfileComponent() {
           ...updatedUser,
           phoneNumber: updatedUser.phoneNumber ?? updatedUser.phone_number ?? prev.user.phoneNumber,
           profilePic: updatedUser.profilePic ?? updatedUser.profile_pic ?? prev.user.profilePic,
+          coverPic: updatedUser.coverPic ?? updatedUser.cover_pic ?? prev.user.coverPic,
           birthDate: updatedUser.birthDate ?? updatedUser.birth_date ?? prev.user.birthDate,
         },
       };
     });
+  };
+
+  const handleCoverFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setCoverError("Please select a valid image (PNG, JPG, WebP, etc.)");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setCoverError("Cover image must be under 10MB");
+      return;
+    }
+
+    try {
+      setIsUploadingCover(true);
+      setCoverError(null);
+
+      const formData = new FormData();
+      formData.append("coverPic", file);
+
+      const res = await axiosInstance.post(API_ENDPOINTS.user.uploadCover, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      if (res.data?.coverPic) {
+        setProfile((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            user: {
+              ...prev.user,
+              coverPic: res.data.coverPic,
+            },
+          };
+        });
+      }
+    } catch (err: any) {
+      console.error("Failed to upload cover picture:", err);
+      setCoverError(err?.response?.data?.message || err?.message || "Failed to upload cover photo.");
+    } finally {
+      setIsUploadingCover(false);
+      if (coverInputRef.current) {
+        coverInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleRemoveCover = async () => {
+    try {
+      setIsUploadingCover(true);
+      setCoverError(null);
+      await axiosInstance.put(API_ENDPOINTS.user.update, { coverPic: null });
+      setProfile((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          user: {
+            ...prev.user,
+            coverPic: null,
+          },
+        };
+      });
+    } catch (err: any) {
+      console.error("Failed to remove cover photo:", err);
+      setCoverError(err?.response?.data?.message || err?.message || "Failed to remove cover photo.");
+    } finally {
+      setIsUploadingCover(false);
+    }
   };
 
   if (loading) {
@@ -158,83 +236,175 @@ export default function MyProfileComponent() {
         />
       )}
 
-      {/* HEADER */}
-      {/* HERO HEADER */}
-      <div className="relative mb-10 overflow-hidden w-full">
-        {/* CONTENT */}
-        <div className="relative flex items-center justify-between px-8 py-7">
-          {/* LEFT SIDE */}
-          <div className="flex items-center gap-6 w-full">
-            {/* AVATAR */}
-            <div className="relative shrink-0">
-              {/* border glow */}
-              <div className="absolute -inset-0.5 rounded-full bg-gradient-to-b from-[#111417] to-[#D1BCFF] blur-xs" />
+      {/* COVER PHOTO & PROFILE HEADER */}
+      <div className="relative mb-12 w-full rounded-2xl overflow-hidden border border-white/10 bg-[#0b1223] shadow-2xl">
+        {/* HIDDEN FILE INPUT FOR COVER UPLOAD */}
+        <input
+          id="cover-photo-upload-input"
+          ref={coverInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleCoverFileSelected}
+        />
 
-              {user?.profilePic && user.profilePic.trim() !== "" ? (
-                <img
-                  src={user.profilePic}
-                  alt={user?.name || "Profile avatar"}
-                  className="relative h-36 w-36 rounded-full border border-white/10 object-cover bg-[#121826]"
-                  onError={(e) => {
-                    // If image fails to load, hide img element and fallback to initial letter
-                    const target = e.currentTarget;
-                    target.style.display = "none";
-                    const fallback = target.nextElementSibling as HTMLElement | null;
-                    if (fallback) {
-                      fallback.style.display = "flex";
-                    }
-                  }}
-                />
-              ) : null}
-
-              <div
-                style={{ display: user?.profilePic && user.profilePic.trim() !== "" ? "none" : "flex" }}
-                className="relative h-36 w-36 items-center justify-center rounded-full border border-white/15 bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-900 text-5xl font-bold uppercase text-white shadow-[0_0_30px_rgba(99,102,241,0.25)] select-none"
-              >
-                {user?.name?.trim() ? user.name.trim().charAt(0) : "U"}
+        {/* COVER PHOTO SECTION */}
+        <div className="relative h-56 sm:h-72 lg:h-80 w-full overflow-hidden group bg-gradient-to-r from-slate-950 via-indigo-950 to-purple-950">
+          {user?.coverPic && user.coverPic.trim() !== "" ? (
+            <img
+              src={user.coverPic}
+              alt={`${user?.name || "User"}'s Cover`}
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-r from-[#0b1223] via-indigo-950/70 to-[#0b1223] flex items-center justify-center">
+              <div className="absolute -top-16 -left-16 w-72 h-72 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-16 -right-16 w-72 h-72 bg-purple-500/15 rounded-full blur-3xl pointer-events-none" />
+              <div className="text-center text-slate-500/80 pointer-events-none">
+                <Camera className="w-10 h-10 mx-auto mb-2 opacity-40" />
+                <p className="text-xs font-medium tracking-wide">Add a cover photo to personalize your profile</p>
               </div>
             </div>
+          )}
 
-            {/* USER INFO */}
-            <div className="flex flex-col justify-start items-start w-full">
-              <h1
-                style={{ fontFamily: '"Noto Serif", sans-serif' }}
-                className="text-[48px] leading-none font-semibold tracking-[-1.5px] text-[#E1E2E7]"
+          {/* Vignette Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0b1223] via-[#0b1223]/40 to-transparent pointer-events-none" />
+
+          {/* Upload loading indicator */}
+          {isUploadingCover && (
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-30 flex flex-col items-center justify-center space-y-2">
+              <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
+              <span className="text-sm font-medium text-slate-200">Updating cover photo...</span>
+            </div>
+          )}
+
+          {/* Cover Action Buttons (Facebook-style bottom right) */}
+          <div className="absolute bottom-4 right-4 z-40 flex items-center gap-2 pointer-events-auto">
+            {coverError && (
+              <span className="bg-red-500/20 border border-red-500/40 text-red-300 text-xs px-3 py-1.5 rounded-lg backdrop-blur-md">
+                {coverError}
+              </span>
+            )}
+
+            {user?.coverPic && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemoveCover();
+                }}
+                disabled={isUploadingCover}
+                className="bg-black/70 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/40 text-slate-300 border border-white/15 backdrop-blur-md text-xs h-9 px-3 rounded-lg transition cursor-pointer flex items-center justify-center pointer-events-auto"
+                title="Remove Cover Photo"
               >
-                {user?.name || "Julian Barnes"}
-              </h1>
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
 
-              <p
-                style={{ fontFamily: "Manrope, sans-serif" }}
-                className="mt-2 text-[15px] text-[#C7C4D7]"
-              >
-                {user?.tagline || "Bibliophile since 2024 • Premium Member"}
-              </p>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                coverInputRef.current?.click();
+              }}
+              disabled={isUploadingCover}
+              className="inline-flex items-center gap-2 bg-black/80 hover:bg-black active:scale-95 text-white border border-white/20 backdrop-blur-md text-xs font-semibold h-9 px-4 rounded-lg shadow-xl transition cursor-pointer select-none pointer-events-auto"
+            >
+              <Camera className="w-4 h-4 text-indigo-400" />
+              <span>{user?.coverPic ? "Edit Cover Photo" : "Add Cover Photo"}</span>
+            </button>
+          </div>
+        </div>
 
-              <div className="mt-4 flex items-center justify-between gap-6 w-full">
+        {/* PROFILE INFO & AVATAR ROW (Overlapping Cover Photo) */}
+        <div className="px-6 sm:px-8 pb-8 pt-0 -mt-16 sm:-mt-20 relative z-20 pointer-events-auto">
+          <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 pb-6 border-b border-white/10">
+            {/* Left: Avatar & User Metadata */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-6 w-full md:w-auto">
+              {/* AVATAR */}
+              <div className="relative shrink-0">
+                <div className="absolute -inset-1 rounded-full bg-gradient-to-b from-indigo-500/40 to-purple-600/40 blur-xs" />
+
+                {user?.profilePic && user.profilePic.trim() !== "" ? (
+                  <img
+                    src={user.profilePic}
+                    alt={user?.name || "Profile avatar"}
+                    className="relative h-32 w-32 sm:h-36 sm:w-36 rounded-full ring-4 ring-[#0b1223] border border-white/15 object-cover bg-[#121826] shadow-2xl"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      target.style.display = "none";
+                      const fallback = target.nextElementSibling as HTMLElement | null;
+                      if (fallback) fallback.style.display = "flex";
+                    }}
+                  />
+                ) : null}
+
+                <div
+                  style={{ display: user?.profilePic && user.profilePic.trim() !== "" ? "none" : "flex" }}
+                  className="relative h-32 w-32 sm:h-36 sm:w-36 items-center justify-center rounded-full ring-4 ring-[#0b1223] border border-white/15 bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-900 text-5xl font-bold uppercase text-white shadow-[0_0_30px_rgba(99,102,241,0.25)] select-none"
+                >
+                  {user?.name?.trim() ? user.name.trim().charAt(0) : "U"}
+                </div>
+              </div>
+
+              {/* USER INFO */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h1
+                    style={{ fontFamily: '"Noto Serif", sans-serif' }}
+                    className="text-3xl sm:text-4xl font-bold tracking-tight text-white"
+                  >
+                    {user?.name || "Julian Barnes"}
+                  </h1>
+                  {user?.isVerified && (
+                    <span className="inline-flex items-center gap-1 bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs px-2.5 py-0.5 rounded-full font-medium">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400" />
+                      Verified
+                    </span>
+                  )}
+                </div>
+
+                <p
+                  style={{ fontFamily: "Manrope, sans-serif" }}
+                  className="text-sm text-indigo-200/90 font-medium"
+                >
+                  {user?.tagline || "Bibliophile since 2024 • Premium Member"}
+                </p>
+
                 {/* TAGS */}
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 pt-1">
                   {tags.map((tag, idx) => (
                     <span
                       key={idx}
                       style={{ fontFamily: "Manrope, sans-serif" }}
-                      className="rounded-full bg-white/10 px-4 py-1.5 text-xs text-slate-300 backdrop-blur-sm"
+                      className="rounded-full bg-white/10 px-3 py-1 text-xs text-slate-300 backdrop-blur-sm border border-white/5"
                     >
                       {tag}
                     </span>
                   ))}
                 </div>
-
-                {/* EDIT BUTTON */}
-                <Button
-                  onClick={() => setIsEditModalOpen(true)}
-                  className="h-9 rounded-[5px] bg-white/10 px-5 text-sm font-medium text-slate-200 shadow-inner hover:bg-white/15 cursor-pointer transition flex items-center gap-1.5"
-                >
-                  <IconEdit/> Edit Profile
-                </Button>
               </div>
             </div>
+
+            {/* Right: Actions */}
+            <div className="flex items-center gap-3 w-full md:w-auto pt-2 md:pt-0">
+              <Button
+                onClick={() => setIsEditModalOpen(true)}
+                className="h-10 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white px-5 text-sm font-semibold shadow-lg shadow-indigo-600/20 cursor-pointer transition flex items-center gap-2"
+              >
+                <IconEdit className="w-4 h-4" />
+                <span>Edit Profile</span>
+              </Button>
+            </div>
           </div>
+
+          {/* BIO SNIPPET */}
+          {user?.bio && (
+            <div className="mt-4 bg-white/[0.02] border border-white/5 p-4 rounded-xl">
+              <p className="text-xs uppercase font-bold text-slate-400 tracking-wider mb-1">About</p>
+              <p className="text-sm text-slate-200 leading-relaxed">{user.bio}</p>
+            </div>
+          )}
         </div>
       </div>
       {/* STATS */}

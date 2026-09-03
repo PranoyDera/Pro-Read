@@ -27,8 +27,7 @@ import {
   Flame,
   X,
   BookMarked,
-  ChevronDown,
-  Loader2
+  ChevronDown
 } from "lucide-react";
 import { Button } from "@/app/Components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -60,8 +59,8 @@ export type Author = {
   id: string;
   name: string;
   handle: string;
-  avatar: string;
-  bannerImage: string;
+  avatar: string | null;
+  bannerImage: string | null;
   role: string;
   bio: string;
   location: string;
@@ -111,7 +110,7 @@ export default function AuthorsComponent() {
                 title: s.title || "Untitled Story",
                 subtitle: s.genre ? `${s.genre} Chronicle` : "Featured Saga",
                 excerpt: plainDesc.slice(0, 180) + (plainDesc.length > 180 ? "..." : ""),
-                coverImage: s.cover_pic || "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80",
+                coverImage: s.cover_pic || "",
                 genre: s.genre || "General",
                 readingTime: s.read_time || "~3 min read",
                 rating: 4.8 + ((s.id % 3) * 0.1),
@@ -142,8 +141,8 @@ export default function AuthorsComponent() {
               id: String(dbAuthor.id),
               name: dbAuthor.name,
               handle: `@${(dbAuthor.name || "author").toLowerCase().replace(/\s+/g, "_")}`,
-              avatar: dbAuthor.profile_pic || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(dbAuthor.name)}`,
-              bannerImage: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80",
+              avatar: dbAuthor.profile_pic || null,
+              bannerImage: dbAuthor.cover_pic || null,
               role: dbAuthor.reason || "Master Author & Creator",
               bio: dbAuthor.bio || "Crafting stories, sharing wisdom, and building worlds across prose and verse.",
               location: "Verified Author",
@@ -218,11 +217,8 @@ export default function AuthorsComponent() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#090f1d] flex flex-col items-center justify-center p-6 text-[#E1E2E7] space-y-4">
-        <div className="relative">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center animate-pulse text-indigo-400">
-            <BookMarked className="w-7 h-7" />
-          </div>
-          <Loader2 className="w-6 h-6 text-indigo-400 animate-spin absolute -bottom-2 -right-2" />
+        <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center animate-pulse text-indigo-400">
+          <BookMarked className="w-7 h-7" />
         </div>
         <p className="text-sm font-medium text-slate-400 animate-pulse tracking-wide">
           Loading Pro-Read Authors...
@@ -358,13 +354,20 @@ export default function AuthorsComponent() {
 
             {/* Author Profile Header Hero Banner */}
             <div className="relative rounded-2xl overflow-hidden border border-white/10 bg-[#0b1223] shadow-2xl">
-              {/* Banner Background Image with Gradient Overlay */}
-              <div className="relative h-48 sm:h-64 w-full overflow-hidden">
-                <img
-                  src={selectedAuthor.bannerImage}
-                  alt={selectedAuthor.name}
-                  className="w-full h-full object-cover"
-                />
+              {/* Banner Background Image or Gradient Overlay */}
+              <div className="relative h-48 sm:h-64 w-full overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950/80 to-purple-950/60">
+                {selectedAuthor.bannerImage ? (
+                  <img
+                    src={selectedAuthor.bannerImage}
+                    alt={selectedAuthor.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-950 via-slate-900 to-purple-950">
+                    <div className="absolute -top-12 -left-12 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl" />
+                    <div className="absolute -bottom-12 -right-12 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl" />
+                  </div>
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0b1223] via-[#0b1223]/60 to-transparent" />
                 <div className="absolute top-4 right-4 flex gap-2">
                   <Button
@@ -388,11 +391,27 @@ export default function AuthorsComponent() {
               <div className="px-6 sm:px-8 pb-8 pt-0 -mt-16 sm:-mt-20 relative z-10">
                 <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 pb-6 border-b border-white/10">
                   <div className="flex flex-col sm:flex-row items-start sm:items-end gap-5">
-                    <img
-                      src={selectedAuthor.avatar}
-                      alt={selectedAuthor.name}
-                      className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl object-cover ring-4 ring-[#0b1223] shadow-2xl"
-                    />
+                    <div className="relative shrink-0">
+                      {selectedAuthor.avatar && selectedAuthor.avatar.trim() !== "" ? (
+                        <img
+                          src={selectedAuthor.avatar}
+                          alt={selectedAuthor.name}
+                          className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl object-cover ring-4 ring-[#0b1223] shadow-2xl bg-[#121826]"
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            target.style.display = "none";
+                            const fallback = target.nextElementSibling as HTMLElement | null;
+                            if (fallback) fallback.style.display = "flex";
+                          }}
+                        />
+                      ) : null}
+                      <div
+                        style={{ display: selectedAuthor.avatar && selectedAuthor.avatar.trim() !== "" ? "none" : "flex" }}
+                        className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl items-center justify-center ring-4 ring-[#0b1223] shadow-2xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-900 text-3xl sm:text-4xl font-bold uppercase text-white select-none border border-white/15"
+                      >
+                        {selectedAuthor.name?.trim() ? selectedAuthor.name.trim().charAt(0) : "A"}
+                      </div>
+                    </div>
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h1 className="text-2xl sm:text-3xl font-bold font-serif text-white">

@@ -33,4 +33,13 @@ export const uploadBufferToCloudinary = (fileBuffer, folder = "stories") => {
   });
 };
 
+export const uploadBase64ToCloudinary = async (base64String, folder = "profiles") => {
+  if (!base64String) return null;
+  const result = await cloudinary.uploader.upload(base64String, {
+    folder,
+    resource_type: "auto",
+  });
+  return result;
+};
+
 export default cloudinary;

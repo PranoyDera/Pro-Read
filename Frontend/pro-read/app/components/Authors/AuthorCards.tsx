@@ -63,22 +63,45 @@ export const AuthorCards: React.FC<AuthorCardsProps> = ({
             <div
               onClick={() => onSelectAuthor(author)}
               className={cn(
-                "cursor-pointer overflow-hidden relative card h-[420px] rounded-[8px] shadow-xl w-full flex flex-col justify-between p-6 transition-all duration-300 border border-white/10 hover:border-indigo-500/40 hover:shadow-2xl hover:shadow-indigo-500/10 bg-cover bg-center"
+                "cursor-pointer overflow-hidden relative card h-[420px] rounded-[8px] shadow-xl w-full flex flex-col justify-between p-6 transition-all duration-300 border border-white/10 hover:border-indigo-500/40 hover:shadow-2xl hover:shadow-indigo-500/10 bg-cover bg-center",
+                !author.bannerImage && "bg-gradient-to-br from-indigo-950/60 via-slate-900 to-[#0b1223]"
               )}
-              style={{ backgroundImage: `url(${author.bannerImage})` }}
+              style={author.bannerImage ? { backgroundImage: `url(${author.bannerImage})` } : undefined}
             >
-              {/* Dark Overlay with smooth transition on hover */}
+              {/* Dark / Atmospheric Overlay with smooth transition on hover */}
               <div className="absolute w-full h-full top-0 left-0 transition duration-300 bg-gradient-to-t from-slate-950 via-slate-950/80 to-black/40 group-hover/card:bg-black/85 group-hover/card:via-slate-950/90 opacity-90 group-hover/card:opacity-95"></div>
+
+              {/* Decorative radial glows if no cover image */}
+              {!author.bannerImage && (
+                <>
+                  <div className="absolute -top-12 -right-12 w-48 h-48 bg-indigo-500/15 rounded-full blur-2xl pointer-events-none" />
+                  <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-purple-500/15 rounded-full blur-2xl pointer-events-none" />
+                </>
+              )}
 
               {/* Top Row: Avatar, Info, Follow Button, Rating */}
               <div className="flex flex-row items-center justify-between z-10 w-full">
                 <div className="flex flex-row items-center space-x-3">
-                  <div className="relative">
-                    <img
-                      alt={author.name}
-                      src={author.avatar}
-                      className="h-12 w-12 rounded-full border-2 border-indigo-500/50 object-cover ring-2 ring-black/50 shadow-md"
-                    />
+                  <div className="relative shrink-0">
+                    {author.avatar && author.avatar.trim() !== "" ? (
+                      <img
+                        alt={author.name}
+                        src={author.avatar}
+                        className="h-12 w-12 rounded-full border-2 border-indigo-500/50 object-cover ring-2 ring-black/50 shadow-md bg-[#121826]"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          target.style.display = "none";
+                          const fallback = target.nextElementSibling as HTMLElement | null;
+                          if (fallback) fallback.style.display = "flex";
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      style={{ display: author.avatar && author.avatar.trim() !== "" ? "none" : "flex" }}
+                      className="h-12 w-12 rounded-full items-center justify-center border-2 border-indigo-500/50 ring-2 ring-black/50 shadow-md bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-900 text-lg font-bold uppercase text-white select-none"
+                    >
+                      {author.name?.trim() ? author.name.trim().charAt(0) : "A"}
+                    </div>
                     {author.verified && (
                       <div className="absolute -bottom-0.5 -right-0.5 bg-[#0b1223] rounded-full">
                         <IconCircleCheck className="w-4 h-4 text-cyan-400 fill-cyan-400/20" />

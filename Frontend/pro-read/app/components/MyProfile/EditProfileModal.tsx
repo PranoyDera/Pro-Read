@@ -33,6 +33,7 @@ type EditProfileModalProps = {
     phoneNumber?: string;
     gender?: string;
     profilePic?: string | null;
+    coverPic?: string | null;
     bio?: string;
     birthDate?: string;
     role?: string;

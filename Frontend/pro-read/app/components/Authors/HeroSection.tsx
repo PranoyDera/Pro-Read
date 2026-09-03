@@ -81,11 +81,27 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             <IconAward className="w-3 h-3" /> Spotlight
           </div>
           <div className="flex items-center gap-3">
-            <img
-              src={featuredAuthor.avatar}
-              alt={featuredAuthor.name}
-              className="w-14 h-14 rounded-full object-cover ring-2 ring-indigo-400/60 shadow-md"
-            />
+            <div className="relative shrink-0">
+              {featuredAuthor.avatar && featuredAuthor.avatar.trim() !== "" ? (
+                <img
+                  src={featuredAuthor.avatar}
+                  alt={featuredAuthor.name}
+                  className="w-14 h-14 rounded-full object-cover ring-2 ring-indigo-400/60 shadow-md bg-[#121826]"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    target.style.display = "none";
+                    const fallback = target.nextElementSibling as HTMLElement | null;
+                    if (fallback) fallback.style.display = "flex";
+                  }}
+                />
+              ) : null}
+              <div
+                style={{ display: featuredAuthor.avatar && featuredAuthor.avatar.trim() !== "" ? "none" : "flex" }}
+                className="w-14 h-14 rounded-full items-center justify-center ring-2 ring-indigo-400/60 shadow-md bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-900 text-xl font-bold uppercase text-white select-none border border-white/15"
+              >
+                {featuredAuthor.name?.trim() ? featuredAuthor.name.trim().charAt(0) : "A"}
+              </div>
+            </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1">
                 <h4 className="text-white font-semibold text-base truncate group-hover:text-indigo-300 transition-colors">

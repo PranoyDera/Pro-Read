@@ -40,19 +40,25 @@ export const StoryCard: React.FC<StoryCardProps> = ({
       )}
     >
       {/* Story Book Cover */}
-      <div className="sm:w-48 h-56 sm:h-auto relative overflow-hidden shrink-0">
-        <img
-          src={story.coverImage}
-          alt={story.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t sm:bg-gradient-to-r from-black/80 via-transparent to-transparent" />
-        <span className="absolute top-3 left-3 bg-indigo-600/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-md tracking-wider uppercase shadow-md">
+      <div className="sm:w-48 h-56 sm:h-auto relative overflow-hidden shrink-0 bg-gradient-to-br from-indigo-950/80 via-slate-900 to-purple-950/70 flex items-center justify-center">
+        {story.coverImage && story.coverImage.trim() !== "" ? (
+          <img
+            src={story.coverImage}
+            alt={story.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={(e) => {
+              const target = e.currentTarget;
+              target.style.display = "none";
+            }}
+          />
+        ) : null}
+        <div className="absolute inset-0 bg-gradient-to-t sm:bg-gradient-to-r from-black/80 via-transparent to-transparent pointer-events-none" />
+        <span className="absolute top-3 left-3 bg-indigo-600/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-md tracking-wider uppercase shadow-md z-10">
           {story.genre}
         </span>
 
         {story.isEditorChoice && (
-          <span className="absolute bottom-3 left-3 bg-amber-500/90 text-slate-950 text-[10px] font-extrabold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-md">
+          <span className="absolute bottom-3 left-3 bg-amber-500/90 text-slate-950 text-[10px] font-extrabold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-md z-10">
             <IconWand className="w-3 h-3 fill-slate-950" /> Editor&apos;s Choice
           </span>
         )}

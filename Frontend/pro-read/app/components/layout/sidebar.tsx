@@ -204,20 +204,30 @@ function SidebarProfile({
       )}
     >
       <div className="flex items-center gap-3">
-        {currentUser?.profile_pic ? (
-          <Image
-            src={currentUser.profile_pic}
-            alt={currentUser.name || "Profile avatar"}
-            width={48}
-            height={48}
-            className="h-12 w-12 rounded-full object-cover ring-1 ring-white/10"
-            unoptimized
-          />
-        ) : (
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/80 to-cyan-400/70 text-sm font-semibold text-white ring-1 ring-white/10">
+        <div className="relative shrink-0">
+          {currentUser?.profile_pic && currentUser.profile_pic.trim() !== "" ? (
+            <img
+              src={currentUser.profile_pic}
+              alt={currentUser?.name || "Profile avatar"}
+              className="relative h-12 w-12 rounded-full border border-white/10 object-cover bg-[#121826]"
+              onError={(e) => {
+                const target = e.currentTarget;
+                target.style.display = "none";
+                const fallback = target.nextElementSibling as HTMLElement | null;
+                if (fallback) {
+                  fallback.style.display = "flex";
+                }
+              }}
+            />
+          ) : null}
+
+          <div
+            style={{ display: currentUser?.profile_pic && currentUser.profile_pic.trim() !== "" ? "none" : "flex" }}
+            className="relative h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-900 text-lg font-bold uppercase text-white shadow-[0_0_15px_rgba(99,102,241,0.25)] select-none"
+          >
             {userInitial}
           </div>
-        )}
+        </div>
 
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-white">

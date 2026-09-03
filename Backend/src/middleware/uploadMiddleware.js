@@ -25,3 +25,10 @@ export const uploadStoryCover = multer({
   fileFilter,
   limits: { fileSize: 10 * 1024 * 1024 }
 });
+
+export const uploadUserCover = multer({
+  storage: memoryStorage,
+  fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 }
+});
+

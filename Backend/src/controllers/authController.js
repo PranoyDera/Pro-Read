@@ -102,6 +102,7 @@ export const login = async (req, res) => {
         phone_number: user.phone_number,
         gender: user.gender,
         profile_pic: user.profile_pic,
+        cover_pic: user.cover_pic,
         role: user.role,
         is_verified: user.is_verified,
         bio: user.bio,

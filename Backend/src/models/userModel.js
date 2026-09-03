@@ -9,6 +9,7 @@ export const createUsersTable = async () => {
       phone_number VARCHAR(20),
       gender VARCHAR(30),
       profile_pic TEXT,
+      cover_pic TEXT,
       role VARCHAR(20) DEFAULT 'reader',
       is_verified BOOLEAN DEFAULT FALSE,
       bio TEXT,
@@ -26,6 +27,7 @@ export const createUsersTable = async () => {
   );
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(30)");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_pic TEXT");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS cover_pic TEXT");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'reader'");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT");
@@ -42,6 +44,7 @@ export const findUserByEmail = async (email) => {
       phone_number,
       gender,
       profile_pic,
+      cover_pic,
       role,
       is_verified,
       bio,
@@ -59,7 +62,7 @@ export const findUserByEmail = async (email) => {
 
 export const findUserById = async (userId) => {
   const query = `
-    SELECT id, name, email, phone_number, gender, profile_pic, role, is_verified, bio, reason, birth_date, created_at, updated_at
+    SELECT id, name, email, phone_number, gender, profile_pic, cover_pic, role, is_verified, bio, reason, birth_date, created_at, updated_at
     FROM users
     WHERE id = $1
   `;
@@ -73,12 +76,13 @@ export const createUser = async ({
   phoneNumber,
   gender,
   profilePic,
+  coverPic,
   passwordHash
 }) => {
   const query = `
-    INSERT INTO users (name, email, phone_number, gender, profile_pic, password_hash, role, is_verified)
-    VALUES ($1, $2, $3, $4, $5, $6, 'reader', FALSE)
-    RETURNING id, name, email, phone_number, gender, profile_pic, role, is_verified, bio, reason, birth_date, created_at, updated_at
+    INSERT INTO users (name, email, phone_number, gender, profile_pic, cover_pic, password_hash, role, is_verified)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, 'reader', FALSE)
+    RETURNING id, name, email, phone_number, gender, profile_pic, cover_pic, role, is_verified, bio, reason, birth_date, created_at, updated_at
   `;
   const values = [
     name,
@@ -86,6 +90,7 @@ export const createUser = async ({
     phoneNumber,
     gender,
     profilePic || null,
+    coverPic || null,
     passwordHash
   ];
   const { rows } = await pool.query(query, values);
@@ -101,7 +106,7 @@ export const updateUserRoleToAuthor = async ({ userId, birthDate, bio, reason })
         reason = $4,
         updated_at = NOW()
     WHERE id = $1
-    RETURNING id, name, email, phone_number, gender, profile_pic, role, is_verified, bio, reason, birth_date, created_at, updated_at
+    RETURNING id, name, email, phone_number, gender, profile_pic, cover_pic, role, is_verified, bio, reason, birth_date, created_at, updated_at
   `;
   const values = [userId, birthDate, bio || null, reason || null];
   const { rows } = await pool.query(query, values);
@@ -115,6 +120,7 @@ export const updateUserProfile = async (userId, fieldsToUpdate) => {
     phoneNumber: "phone_number",
     gender: "gender",
     profilePic: "profile_pic",
+    coverPic: "cover_pic",
     bio: "bio",
     reason: "reason",
     birthDate: "birth_date"
@@ -142,7 +148,7 @@ export const updateUserProfile = async (userId, fieldsToUpdate) => {
     UPDATE users
     SET ${setClauses.join(", ")}
     WHERE id = $1
-    RETURNING id, name, email, phone_number, gender, profile_pic, role, is_verified, bio, reason, birth_date, created_at, updated_at
+    RETURNING id, name, email, phone_number, gender, profile_pic, cover_pic, role, is_verified, bio, reason, birth_date, created_at, updated_at
   `;
 
   const { rows } = await pool.query(query, values);
@@ -158,6 +164,7 @@ export const getAllAuthorsWithStories = async () => {
       u.phone_number,
       u.gender,
       u.profile_pic,
+      u.cover_pic,
       u.role,
       u.is_verified,
       u.bio,

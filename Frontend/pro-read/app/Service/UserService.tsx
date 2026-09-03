@@ -23,6 +23,7 @@ export type AuthorData = {
   phone_number: string;
   gender: string;
   profile_pic: string | null;
+  cover_pic?: string | null;
   role: "author";
   is_verified: boolean;
   bio?: string | null;

@@ -22,6 +22,7 @@ export const API_ENDPOINTS = {
   user: {
     profile: "/api/user/profile",
     update: "/api/user/update",
+    uploadCover: "/api/user/upload-cover",
     authors: "/api/user/authors",
     becomeAuthor: "/api/user/become-author",
   },
