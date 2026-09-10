@@ -5,6 +5,7 @@ import {
   createDraft,
   createStory,
   deleteStory,
+  featureStory,
   getMyDrafts,
   getMyPublishedStories,
   getPublishedStories,
@@ -31,6 +32,7 @@ storyRouter.get("/:id/comments", getStoryCommentsController);
 storyRouter.post("/:id/comments", requireAuth, addCommentToStory);
 storyRouter.post("/", requireAuth, requireAuthor, uploadStoryCover.single("coverPic"), createStory);
 storyRouter.patch("/:id/block", requireAuth, blockStory);
+storyRouter.patch("/:id/feature", requireAuth, featureStory);
 storyRouter.delete("/:id", requireAuth, deleteStory);
 
 export default storyRouter;

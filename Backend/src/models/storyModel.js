@@ -26,6 +26,7 @@ export const createStoriesTable = async () => {
       genre VARCHAR(100) DEFAULT 'General',
       read_time VARCHAR(50) DEFAULT '1 min read',
       status VARCHAR(20) DEFAULT 'published',
+      is_featured BOOLEAN DEFAULT FALSE,
       is_blocked BOOLEAN DEFAULT FALSE,
       is_deleted BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -37,6 +38,7 @@ export const createStoriesTable = async () => {
     ALTER TABLE drafts ADD COLUMN IF NOT EXISTS read_time VARCHAR(50) DEFAULT '1 min read';
     ALTER TABLE stories ADD COLUMN IF NOT EXISTS genre VARCHAR(100) DEFAULT 'General';
     ALTER TABLE stories ADD COLUMN IF NOT EXISTS read_time VARCHAR(50) DEFAULT '1 min read';
+    ALTER TABLE stories ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT FALSE;
 
     -- Story Likes Table
     CREATE TABLE IF NOT EXISTS story_likes (
@@ -211,7 +213,7 @@ export const createStory = async ({
   const query = `
     INSERT INTO stories (author_id, title, description, cover_pic, genre, read_time, status)
     VALUES ($1, $2, $3, $4, $5, $6, $7)
-    RETURNING id, author_id, title, description, cover_pic, genre, read_time, status, is_blocked, is_deleted, created_at, updated_at
+    RETURNING id, author_id, title, description, cover_pic, genre, read_time, status, is_featured, is_blocked, is_deleted, created_at, updated_at
   `;
   const values = [authorId, title, description, coverPic || null, genre, readTime, status];
   const { rows } = await pool.query(query, values);
@@ -220,7 +222,7 @@ export const createStory = async ({
 
 export const getStoryById = async (id) => {
   const query = `
-    SELECT s.id, s.author_id, s.title, s.description, s.cover_pic, s.genre, s.read_time, s.status, s.is_blocked, s.is_deleted, s.created_at, s.updated_at,
+    SELECT s.id, s.author_id, s.title, s.description, s.cover_pic, s.genre, s.read_time, s.status, s.is_featured, s.is_blocked, s.is_deleted, s.created_at, s.updated_at,
            u.name AS author_name, u.email AS author_email, u.profile_pic AS author_profile_pic,
            COALESCE(l.likes_count, 0)::INT AS likes_count,
            COALESCE(c.comments_count, 0)::INT AS comments_count,
@@ -296,7 +298,7 @@ export const updateStory = async (id, authorId, { title, description, coverPic, 
     UPDATE stories
     SET ${setClauses.join(", ")}
     WHERE id = $1 AND author_id = $2 AND is_deleted = FALSE
-    RETURNING id, author_id, title, description, cover_pic, genre, read_time, status, is_blocked, is_deleted, created_at, updated_at
+    RETURNING id, author_id, title, description, cover_pic, genre, read_time, status, is_featured, is_blocked, is_deleted, created_at, updated_at
   `;
 
   const { rows } = await pool.query(query, values);
@@ -308,9 +310,46 @@ export const setStoryBlockStatus = async (id, isBlocked) => {
     UPDATE stories
     SET is_blocked = $2, updated_at = NOW()
     WHERE id = $1 AND is_deleted = FALSE
-    RETURNING id, author_id, title, description, cover_pic, genre, read_time, status, is_blocked, is_deleted, created_at, updated_at
+    RETURNING id, author_id, title, description, cover_pic, genre, read_time, status, is_featured, is_blocked, is_deleted, created_at, updated_at
   `;
   const { rows } = await pool.query(query, [id, isBlocked]);
+  return rows[0] || null;
+};
+
+export const setStoryFeaturedStatus = async (id, isFeatured) => {
+  // Check if story exists and is not deleted
+  const existingStory = await getStoryById(id);
+  if (!existingStory) {
+    const error = new Error("Story not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  // If attempting to mark this story as featured, ensure no other story is already featured
+  if (isFeatured) {
+    const checkQuery = `
+      SELECT id, title, is_featured
+      FROM stories
+      WHERE is_featured = TRUE AND is_deleted = FALSE AND id != $1
+      LIMIT 1
+    `;
+    const { rows: conflictRows } = await pool.query(checkQuery, [id]);
+    if (conflictRows.length > 0) {
+      const current = conflictRows[0];
+      const error = new Error(`Story "${current.title}" (ID: ${current.id}) is already featured. Unfeature it before featuring this story.`);
+      error.statusCode = 409;
+      error.currentFeaturedStory = current;
+      throw error;
+    }
+  }
+
+  const updateQuery = `
+    UPDATE stories
+    SET is_featured = $2, updated_at = NOW()
+    WHERE id = $1 AND is_deleted = FALSE
+    RETURNING id, author_id, title, description, cover_pic, genre, read_time, status, is_featured, is_blocked, is_deleted, created_at, updated_at
+  `;
+  const { rows } = await pool.query(updateQuery, [id, isFeatured]);
   return rows[0] || null;
 };
 
@@ -323,7 +362,7 @@ export const softDeleteStory = async (id, authorId, isAdmin = false) => {
       UPDATE stories
       SET is_deleted = TRUE, updated_at = NOW()
       WHERE id = $1 AND is_deleted = FALSE
-      RETURNING id, author_id, title, description, cover_pic, genre, read_time, status, is_blocked, is_deleted, created_at, updated_at
+      RETURNING id, author_id, title, description, cover_pic, genre, read_time, status, is_featured, is_blocked, is_deleted, created_at, updated_at
     `;
     values = [id];
   } else {
@@ -331,7 +370,7 @@ export const softDeleteStory = async (id, authorId, isAdmin = false) => {
       UPDATE stories
       SET is_deleted = TRUE, updated_at = NOW()
       WHERE id = $1 AND author_id = $2 AND is_deleted = FALSE
-      RETURNING id, author_id, title, description, cover_pic, genre, read_time, status, is_blocked, is_deleted, created_at, updated_at
+      RETURNING id, author_id, title, description, cover_pic, genre, read_time, status, is_featured, is_blocked, is_deleted, created_at, updated_at
     `;
     values = [id, authorId];
   }
@@ -342,7 +381,7 @@ export const softDeleteStory = async (id, authorId, isAdmin = false) => {
 
 export const getAuthorPublishedStories = async (authorId) => {
   const query = `
-    SELECT s.id, s.author_id, s.title, s.description, s.cover_pic, s.genre, s.read_time, s.status, s.is_blocked, s.is_deleted, s.created_at, s.updated_at,
+    SELECT s.id, s.author_id, s.title, s.description, s.cover_pic, s.genre, s.read_time, s.status, s.is_featured, s.is_blocked, s.is_deleted, s.created_at, s.updated_at,
            u.name AS author_name, u.email AS author_email, u.profile_pic AS author_profile_pic,
            COALESCE(l.likes_count, 0)::INT AS likes_count,
            COALESCE(c.comments_count, 0)::INT AS comments_count,
@@ -367,7 +406,7 @@ export const getAuthorPublishedStories = async (authorId) => {
 
 export const getPublishedStories = async () => {
   const query = `
-    SELECT s.id, s.author_id, s.title, s.description, s.cover_pic, s.genre, s.read_time, s.status, s.is_blocked, s.is_deleted, s.created_at, s.updated_at,
+    SELECT s.id, s.author_id, s.title, s.description, s.cover_pic, s.genre, s.read_time, s.status, s.is_featured, s.is_blocked, s.is_deleted, s.created_at, s.updated_at,
            u.name AS author_name, u.email AS author_email, u.profile_pic AS author_profile_pic,
            COALESCE(l.likes_count, 0)::INT AS likes_count,
            COALESCE(c.comments_count, 0)::INT AS comments_count,
@@ -436,3 +475,4 @@ export const getStoryComments = async (storyId) => {
   const { rows } = await pool.query(query, [storyId]);
   return rows;
 };
+

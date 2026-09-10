@@ -14,6 +14,7 @@ import {
   hardDeleteDraftInDb,
   recordStoryRead as recordStoryReadInDb,
   setStoryBlockStatus as setStoryBlockStatusInDb,
+  setStoryFeaturedStatus as setStoryFeaturedStatusInDb,
   softDeleteStory as softDeleteStoryInDb,
   toggleStoryLike as toggleStoryLikeInDb,
   updateDraftInDb,
@@ -392,6 +393,41 @@ export const blockStory = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Failed to update block status", error: error.message });
+  }
+};
+
+export const featureStory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isFeatured } = req.body;
+
+    const featuredFlag = isFeatured !== undefined ? Boolean(isFeatured) : true;
+
+    const story = await setStoryFeaturedStatusInDb(id, featuredFlag);
+
+    if (!story) {
+      return res.status(404).json({ message: "Story not found" });
+    }
+
+    return res.status(200).json({
+      message: `Story ${story.is_featured ? "marked as featured" : "unfeatured"} successfully`,
+      story
+    });
+  } catch (error) {
+    if (error.statusCode === 409) {
+      return res.status(409).json({
+        message: error.message,
+        currentFeaturedStory: error.currentFeaturedStory
+      });
+    }
+
+    if (error.statusCode === 404) {
+      return res.status(404).json({ message: error.message });
+    }
+
+    return res
+      .status(500)
+      .json({ message: "Failed to update featured status", error: error.message });
   }
 };
 

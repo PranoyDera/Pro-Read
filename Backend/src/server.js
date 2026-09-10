@@ -6,10 +6,12 @@ import { checkDbConnection } from "./config/db.js";
 import { createUsersTable } from "./models/userModel.js";
 import { createAchievementsTable } from "./models/achievementsModel.js";
 import { createStoriesTable } from "./models/storyModel.js";
+import { createAdminsTable } from "./models/adminModel.js";
 import authRouter from "./routes/authRoutes.js";
 import userRouter from "./routes/userRoutes.js";
 import achievementsRouter from "./routes/achievementsRoutes.js";
 import storyRouter from "./routes/storyRoutes.js";
+import adminRouter from "./routes/adminRoutes.js";
 
 dotenv.config();
 
@@ -26,6 +28,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/user", userRouter);
 app.use("/api/achievements", achievementsRouter);
 app.use("/api/stories", storyRouter);
+app.use("/api/admin", adminRouter);
 
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
@@ -36,6 +39,9 @@ const startServer = async () => {
     await checkDbConnection();
     await createUsersTable();
     console.log("Users table is ready");
+
+    await createAdminsTable();
+    console.log("Admins table is ready");
 
     await createAchievementsTable();
     console.log("Achievements table is ready");
