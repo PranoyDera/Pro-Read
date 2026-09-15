@@ -10,6 +10,8 @@ import {
   Clock,
   Heart,
   MessageSquare,
+  ShieldAlert,
+  Pin,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { ReusableTable, ColumnDef } from "@/app/components/ui/reusable-table";
@@ -27,6 +29,7 @@ export interface StoryTableProps {
   handleSelectRow: (id: number) => void;
   handleToggleBlock: (id: number) => void;
   handleDelete: (id: number) => void;
+  onViewStory: (id: number) => void;
   setPageSize: (size: number) => void;
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
 }
@@ -43,6 +46,7 @@ export function StoryTable({
   handleSelectRow,
   handleToggleBlock,
   handleDelete,
+  onViewStory,
   setPageSize,
   setCurrentPage,
 }: StoryTableProps) {
@@ -55,8 +59,8 @@ export function StoryTable({
         cellClassName: "max-w-xs",
         cell: (story) => (
           <div>
-            <div className="font-semibold text-neutral-950 truncate">
-              {story.title}
+            <div className="flex items-center gap-1.5 font-semibold text-neutral-950 truncate">
+              <span className="truncate">{story.title}</span>
             </div>
             <div className="flex items-center gap-2 text-xs text-neutral-600 mt-0.5">
               <Clock className="w-3 h-3 text-neutral-500" />
@@ -110,6 +114,15 @@ export function StoryTable({
               <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
               {story.commentsCount}
             </span>
+            <span
+              className={`flex items-center gap-1 ${
+                story.reportsCount > 0 ? "text-amber-600 font-semibold" : "text-neutral-500"
+              }`}
+              title="Reports"
+            >
+              <ShieldAlert className={`w-3.5 h-3.5 ${story.reportsCount > 0 ? "text-amber-500" : "text-neutral-400"}`} />
+              {story.reportsCount}
+            </span>
           </div>
         ),
       },
@@ -159,6 +172,15 @@ export function StoryTable({
             <Button
               variant="ghost"
               size="icon-xs"
+              onClick={() => onViewStory(story.id)}
+              className="text-neutral-600 hover:text-neutral-950 hover:bg-neutral-100"
+              title="View Story Details & Reports"
+            >
+              <Eye className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-xs"
               onClick={() => handleToggleBlock(story.id)}
               className="text-neutral-600 hover:text-neutral-950 hover:bg-neutral-100"
               title={story.isBlocked ? "Unblock Story" : "Block Story"}
@@ -182,7 +204,7 @@ export function StoryTable({
         ),
       },
     ],
-    [handleToggleBlock, handleDelete]
+    [handleToggleBlock, handleDelete, onViewStory]
   );
 
   return (
@@ -201,6 +223,11 @@ export function StoryTable({
       emptyMessage="No stories found"
       emptySubMessage="Try clearing search filters or check back later."
       emptyIcon={<BookOpen className="w-8 h-8 text-neutral-400" />}
+      rowClassName={(story, isSelected) =>
+        story.isFeatured && !isSelected
+          ? "bg-amber-50/40 hover:bg-amber-50/70 border-l-2 border-l-amber-500"
+          : ""
+      }
       pagination={{
         currentPage,
         totalPages,

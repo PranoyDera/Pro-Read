@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Search,
   Trash2,
@@ -9,175 +9,229 @@ import {
   Flame,
   Star,
   Zap,
-  Target,
   Users,
   Edit2,
-  CheckCircle2,
   Plus,
   BookOpen,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/app/components/ui/select";
 import { ReusableTable, ColumnDef } from "@/app/components/ui/reusable-table";
 import AddAchievementModal from "./add-achivement-modal";
-import { AchievementItem as ApiAchievementItem } from "@/app/service/achivement-service";
+import {
+  AchievementItem as ApiAchievementItem,
+  getAchievements,
+  deleteAchievement,
+} from "@/app/service/achivement-service";
+import { toast } from "@/app/components/ui/toast";
+import { API_BASE_URL } from "@/app/consts/common";
 
-export interface AchievementItem {
+export interface DisplayAchievementItem {
   id: number;
   title: string;
   description: string;
+  rule: string;
+  icon: string | null;
   category: "reading" | "writing" | "community" | "streak" | "special";
   tier: "bronze" | "silver" | "gold" | "platinum";
   xpPoints: number;
-  unlockedCount: number;
-  status: "active" | "draft" | "archived";
   createdAt: string;
 }
 
-const INITIAL_ACHIEVEMENTS: AchievementItem[] = [
-  {
-    id: 1,
-    title: "Page Turner I",
-    description: "Read your first 5 complete stories",
-    category: "reading",
-    tier: "bronze",
-    xpPoints: 50,
-    unlockedCount: 3840,
-    status: "active",
-    createdAt: "2025-10-10",
-  },
-  {
-    id: 2,
-    title: "Bookworm Supreme",
-    description: "Read 50 stories across 3 different genres",
-    category: "reading",
-    tier: "gold",
-    xpPoints: 300,
-    unlockedCount: 890,
-    status: "active",
-    createdAt: "2025-10-15",
-  },
-  {
-    id: 3,
-    title: "First Ink",
-    description: "Publish your very first original story",
-    category: "writing",
-    tier: "bronze",
-    xpPoints: 100,
-    unlockedCount: 1420,
-    status: "active",
-    createdAt: "2025-10-20",
-  },
-  {
-    id: 4,
-    title: "Master Storyteller",
-    description: "Receive over 1,000 likes on a single published story",
-    category: "writing",
-    tier: "platinum",
-    xpPoints: 1000,
-    unlockedCount: 65,
-    status: "active",
-    createdAt: "2025-11-01",
-  },
-  {
-    id: 5,
-    title: "7-Day Reading Streak",
-    description: "Read at least 1 chapter every day for 7 days in a row",
-    category: "streak",
-    tier: "silver",
-    xpPoints: 150,
-    unlockedCount: 2310,
-    status: "active",
-    createdAt: "2025-11-05",
-  },
-  {
-    id: 6,
-    title: "Engaged Critic",
-    description: "Leave 25 thoughtful comments on stories",
-    category: "community",
-    tier: "silver",
-    xpPoints: 120,
-    unlockedCount: 1150,
-    status: "active",
-    createdAt: "2025-11-12",
-  },
-  {
-    id: 7,
-    title: "Night Owl Reader",
-    description: "Complete reading a story between 12:00 AM and 4:00 AM",
-    category: "special",
-    tier: "bronze",
-    xpPoints: 75,
-    unlockedCount: 1980,
-    status: "active",
-    createdAt: "2025-12-01",
-  },
-  {
-    id: 8,
-    title: "Century Club",
-    description: "Publish 100 chapters across any number of stories",
-    category: "writing",
-    tier: "platinum",
-    xpPoints: 1500,
-    unlockedCount: 18,
-    status: "draft",
-    createdAt: "2026-01-10",
-  },
-  {
-    id: 9,
-    title: "Anniversary Pioneer",
-    description: "Participate in the Pro-Read Year One Festival",
-    category: "special",
-    tier: "gold",
-    xpPoints: 500,
-    unlockedCount: 420,
-    status: "archived",
-    createdAt: "2025-09-01",
-  },
-];
+// Helper to determine category, tier, and XP reward dynamically based on rule and title
+const deriveAchievementMeta = (
+  item: ApiAchievementItem
+): {
+  category: "reading" | "writing" | "community" | "streak" | "special";
+  tier: "bronze" | "silver" | "gold" | "platinum";
+  xpPoints: number;
+} => {
+  let category: "reading" | "writing" | "community" | "streak" | "special" = "reading";
+  let tier: "bronze" | "silver" | "gold" | "platinum" = "bronze";
+  let xpPoints = 100;
+
+  try {
+    const parsedRule =
+      typeof item.rule === "string" ? JSON.parse(item.rule) : item.rule;
+
+    if (parsedRule && typeof parsedRule === "object") {
+      if (parsedRule.minBooksRead !== undefined) {
+        category = "reading";
+        const val = Number(parsedRule.minBooksRead);
+        if (val >= 50) {
+          tier = "gold";
+          xpPoints = 500;
+        } else if (val >= 20) {
+          tier = "silver";
+          xpPoints = 250;
+        } else {
+          tier = "bronze";
+          xpPoints = 100;
+        }
+      } else if (parsedRule.minDayStreak !== undefined) {
+        category = "streak";
+        const val = Number(parsedRule.minDayStreak);
+        if (val >= 30) {
+          tier = "platinum";
+          xpPoints = 750;
+        } else if (val >= 14) {
+          tier = "gold";
+          xpPoints = 350;
+        } else if (val >= 7) {
+          tier = "silver";
+          xpPoints = 150;
+        } else {
+          tier = "bronze";
+          xpPoints = 50;
+        }
+      } else if (parsedRule.minHoursImmersed !== undefined) {
+        category = "reading";
+        const val = Number(parsedRule.minHoursImmersed);
+        if (val >= 100) {
+          tier = "platinum";
+          xpPoints = 1000;
+        } else if (val >= 25) {
+          tier = "gold";
+          xpPoints = 400;
+        } else {
+          tier = "silver";
+          xpPoints = 200;
+        }
+      } else if (parsedRule.minReviews !== undefined) {
+        category = "community";
+        const val = Number(parsedRule.minReviews);
+        if (val >= 50) {
+          tier = "platinum";
+          xpPoints = 800;
+        } else if (val >= 20) {
+          tier = "gold";
+          xpPoints = 300;
+        } else {
+          tier = "silver";
+          xpPoints = 120;
+        }
+      } else if (parsedRule.minGenres !== undefined) {
+        category = "reading";
+        const val = Number(parsedRule.minGenres);
+        if (val >= 10) {
+          tier = "gold";
+          xpPoints = 500;
+        } else {
+          tier = "silver";
+          xpPoints = 250;
+        }
+      }
+    }
+  } catch {
+    // If not standard JSON rule, inspect title/description keywords
+    const lower = (item.title + " " + item.description).toLowerCase();
+    if (lower.includes("streak") || lower.includes("day")) {
+      category = "streak";
+      tier = "silver";
+      xpPoints = 150;
+    } else if (lower.includes("author") || lower.includes("write") || lower.includes("ink") || lower.includes("story")) {
+      category = "writing";
+      tier = "bronze";
+      xpPoints = 100;
+    } else if (lower.includes("comment") || lower.includes("community") || lower.includes("review")) {
+      category = "community";
+      tier = "silver";
+      xpPoints = 120;
+    } else if (lower.includes("master") || lower.includes("century") || lower.includes("supreme")) {
+      category = "special";
+      tier = "platinum";
+      xpPoints = 1000;
+    }
+  }
+
+  return { category, tier, xpPoints };
+};
+
+const mapApiAchievementToDisplay = (
+  item: ApiAchievementItem
+): DisplayAchievementItem => {
+  const meta = deriveAchievementMeta(item);
+  return {
+    id: item.id,
+    title: item.title,
+    description: item.description,
+    rule: item.rule,
+    icon: item.icon,
+    category: meta.category,
+    tier: meta.tier,
+    xpPoints: meta.xpPoints,
+    createdAt: item.created_at
+      ? new Date(item.created_at).toLocaleDateString("en-CA")
+      : "N/A",
+  };
+};
 
 export default function AchievementManagement() {
-  const [achievements, setAchievements] = useState<AchievementItem[]>(INITIAL_ACHIEVEMENTS);
+  const [achievements, setAchievements] = useState<DisplayAchievementItem[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [tierFilter, setTierFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(5);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [selectedAchievements, setSelectedAchievements] = useState<number[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Filtering
-  const filteredAchievements = useMemo(() => {
-    return achievements.filter((item) => {
-      const matchesSearch =
-        item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchQuery.toLowerCase());
+  // Debounce search query changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(searchInput);
+      setCurrentPage(1);
+    }, 400);
 
-      const matchesCategory = categoryFilter === "all" || item.category === categoryFilter;
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
-      const matchesTier = tierFilter === "all" || item.tier === tierFilter;
+  // Fetch achievements from API
+  const fetchAchievements = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await getAchievements({
+        page: currentPage,
+        limit: pageSize,
+        search: searchQuery.trim() || undefined,
+      });
 
-      return matchesSearch && matchesCategory && matchesTier;
-    });
-  }, [achievements, searchQuery, categoryFilter, tierFilter]);
+      const mapped = (res.achievements || []).map(mapApiAchievementToDisplay);
+      setAchievements(mapped);
 
-  // Pagination calculation
-  const totalItems = filteredAchievements.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const startIndex = (currentPage - 1) * pageSize;
-  const paginatedAchievements = filteredAchievements.slice(startIndex, startIndex + pageSize);
+      if (res.pagination) {
+        setTotalItems(res.pagination.total);
+        setTotalPages(Math.max(1, res.pagination.totalPages));
+      } else {
+        setTotalItems(mapped.length);
+        setTotalPages(Math.max(1, Math.ceil(mapped.length / pageSize)));
+      }
+    } catch (err: unknown) {
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to retrieve achievements.";
+      toast.add({
+        title: "Error fetching achievements",
+        description: errorMsg,
+        type: "error",
+        timeout: 4000,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentPage, pageSize, searchQuery]);
+
+  useEffect(() => {
+    fetchAchievements();
+  }, [fetchAchievements]);
 
   // Selection handlers
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedAchievements(paginatedAchievements.map((item) => item.id));
+      setSelectedAchievements(achievements.map((item) => item.id));
     } else {
       setSelectedAchievements([]);
     }
@@ -189,51 +243,129 @@ export default function AchievementManagement() {
     );
   };
 
-  // Actions
-  const handleToggleStatus = (id: number) => {
-    setAchievements((prev) =>
-      prev.map((item) => {
-        if (item.id === id) {
-          return {
-            ...item,
-            status: item.status === "active" ? "archived" : "active",
-          };
-        }
-        return item;
-      })
-    );
-  };
+  // Delete single achievement
+  const handleDelete = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this achievement?")) return;
 
-  const handleDelete = (id: number) => {
-    if (confirm("Are you sure you want to delete this achievement?")) {
-      setAchievements((prev) => prev.filter((item) => item.id !== id));
+    try {
+      await deleteAchievement(id);
+      toast.add({
+        title: "Achievement deleted",
+        description: "The achievement was deleted successfully.",
+        type: "success",
+        timeout: 3000,
+      });
       setSelectedAchievements((prev) => prev.filter((item) => item !== id));
+      fetchAchievements();
+    } catch (err: unknown) {
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to delete achievement";
+      toast.add({
+        title: "Delete failed",
+        description: errorMsg,
+        type: "error",
+        timeout: 4000,
+      });
     }
   };
 
+  // Bulk delete achievements
+  const handleBulkDelete = async () => {
+    if (
+      !confirm(
+        `Are you sure you want to delete ${selectedAchievements.length} selected achievements?`
+      )
+    ) {
+      return;
+    }
+
+    setIsDeleting(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const id of selectedAchievements) {
+      try {
+        await deleteAchievement(id);
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+
+    setIsDeleting(false);
+    setSelectedAchievements([]);
+
+    if (successCount > 0) {
+      toast.add({
+        title: "Deletion complete",
+        description: `Successfully deleted ${successCount} achievement(s).${
+          failCount > 0 ? ` ${failCount} failed.` : ""
+        }`,
+        type: failCount > 0 ? "warning" : "success",
+        timeout: 4000,
+      });
+    } else if (failCount > 0) {
+      toast.add({
+        title: "Bulk delete failed",
+        description: `Failed to delete selected achievements.`,
+        type: "error",
+        timeout: 4000,
+      });
+    }
+
+    fetchAchievements();
+  };
+
   // Table column definitions
-  const columns = useMemo<ColumnDef<AchievementItem>[]>(
+  const columns = useMemo<ColumnDef<DisplayAchievementItem>[]>(
     () => [
       {
         id: "badge",
         header: "Achievement",
         headerClassName: "text-neutral-800 font-semibold",
         cellClassName: "max-w-xs",
-        cell: (item) => (
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-neutral-100 border border-neutral-300 text-neutral-900 flex items-center justify-center shrink-0 shadow-2xs">
-              {item.category === "reading" && <BookOpen className="w-4 h-4 text-blue-600" />}
-              {item.category === "writing" && <Edit2 className="w-4 h-4 text-emerald-600" />}
-              {item.category === "streak" && <Flame className="w-4 h-4 text-orange-600" />}
-              {item.category === "community" && <Users className="w-4 h-4 text-purple-600" />}
-              {item.category === "special" && <Star className="w-4 h-4 text-amber-600" />}
+        cell: (item) => {
+          const iconUrl = item.icon
+            ? item.icon.startsWith("http")
+              ? item.icon
+              : `${API_BASE_URL}${item.icon}`
+            : null;
+
+          return (
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-neutral-100 border border-neutral-300 text-neutral-900 flex items-center justify-center shrink-0 shadow-2xs overflow-hidden">
+                {iconUrl ? (
+                  <img
+                    src={iconUrl}
+                    alt={item.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                ) : item.category === "reading" ? (
+                  <BookOpen className="w-4 h-4 text-blue-600" />
+                ) : item.category === "writing" ? (
+                  <Edit2 className="w-4 h-4 text-emerald-600" />
+                ) : item.category === "streak" ? (
+                  <Flame className="w-4 h-4 text-orange-600" />
+                ) : item.category === "community" ? (
+                  <Users className="w-4 h-4 text-purple-600" />
+                ) : (
+                  <Star className="w-4 h-4 text-amber-600" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <div className="font-semibold text-neutral-950 truncate">
+                  {item.title}
+                </div>
+                <div className="text-xs text-neutral-600 truncate mt-0.5">
+                  {item.description}
+                </div>
+              </div>
             </div>
-            <div className="min-w-0">
-              <div className="font-semibold text-neutral-950 truncate">{item.title}</div>
-              <div className="text-xs text-neutral-600 truncate mt-0.5">{item.description}</div>
-            </div>
-          </div>
-        ),
+          );
+        },
       },
       {
         id: "tier",
@@ -273,13 +405,13 @@ export default function AchievementManagement() {
         },
       },
       {
-        id: "category",
-        header: "Category",
+        id: "rule",
+        header: "Condition / Rule",
         headerClassName: "text-neutral-800 font-semibold",
         cell: (item) => (
-          <span className="inline-block rounded-[5px] border border-neutral-300 bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-800 uppercase tracking-wide">
-            {item.category}
-          </span>
+          <code className="inline-block max-w-[220px] truncate rounded bg-neutral-100 border border-neutral-250 px-2 py-0.5 text-[11px] font-mono text-neutral-800">
+            {item.rule}
+          </code>
         ),
       },
       {
@@ -292,45 +424,6 @@ export default function AchievementManagement() {
             +{item.xpPoints} XP
           </span>
         ),
-      },
-      {
-        id: "unlockedCount",
-        header: "Unlocked",
-        headerClassName: "text-neutral-800 font-semibold",
-        cell: (item) => (
-          <span className="font-mono text-xs text-neutral-700 font-medium">
-            {item.unlockedCount.toLocaleString()} users
-          </span>
-        ),
-      },
-      {
-        id: "status",
-        header: "Status",
-        headerClassName: "text-neutral-800 font-semibold",
-        cell: (item) => {
-          if (item.status === "active") {
-            return (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                Active
-              </span>
-            );
-          }
-          if (item.status === "draft") {
-            return (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-300 bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-700">
-                <span className="w-1.5 h-1.5 rounded-full bg-neutral-500" />
-                Draft
-              </span>
-            );
-          }
-          return (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-400 bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-800">
-              <span className="w-1.5 h-1.5 rounded-full bg-neutral-700" />
-              Archived
-            </span>
-          );
-        },
       },
       {
         id: "createdAt",
@@ -349,21 +442,8 @@ export default function AchievementManagement() {
             <Button
               variant="ghost"
               size="icon-xs"
-              onClick={() => handleToggleStatus(item.id)}
-              className="text-neutral-600 hover:text-neutral-950 hover:bg-neutral-100"
-              title={item.status === "active" ? "Archive Achievement" : "Activate Achievement"}
-            >
-              {item.status === "active" ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              ) : (
-                <Target className="w-4 h-4 text-neutral-600" />
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-xs"
               onClick={() => handleDelete(item.id)}
-              className="text-neutral-600 hover:text-red-600 hover:bg-red-50"
+              className="text-neutral-600 hover:text-red-600 hover:bg-red-50 cursor-pointer"
               title="Delete Achievement"
             >
               <Trash2 className="w-4 h-4" />
@@ -396,9 +476,21 @@ export default function AchievementManagement() {
         {/* Quick actions */}
         <div className="flex items-center gap-2">
           <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchAchievements()}
+            disabled={isLoading}
+            className="border-neutral-300 text-neutral-700 hover:bg-neutral-100 font-medium rounded-[5px]! py-4 cursor-pointer"
+            title="Refresh achievements"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+
+          <Button
             size="sm"
             onClick={() => setIsAddModalOpen(true)}
-            className="bg-neutral-950 text-white hover:bg-neutral-800 shadow-xs cursor-pointer font-medium"
+            className="bg-neutral-950 text-white hover:bg-neutral-800 shadow-xs cursor-pointer font-medium rounded-[5px]! py-4"
           >
             <Plus className="w-3.5 h-3.5" />
             Add Achievement
@@ -408,15 +500,9 @@ export default function AchievementManagement() {
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => {
-                if (confirm(`Delete ${selectedAchievements.length} selected achievements?`)) {
-                  setAchievements((prev) =>
-                    prev.filter((item) => !selectedAchievements.includes(item.id))
-                  );
-                  setSelectedAchievements([]);
-                }
-              }}
-              className="bg-red-600 text-white hover:bg-red-700 shadow-xs cursor-pointer font-medium"
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+              className="bg-red-600 text-white hover:bg-red-700 shadow-xs cursor-pointer font-medium rounded-[5px]! py-4"
             >
               <Trash2 className="w-3.5 h-3.5" />
               Delete Selected ({selectedAchievements.length})
@@ -427,116 +513,67 @@ export default function AchievementManagement() {
 
       {/* Filter and search toolbar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-4">
-        {/* Search */}
+        {/* Search Input */}
         <div className="w-full sm:w-80 relative">
           <Search className="w-4 h-4 text-neutral-600 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <Input
             placeholder="Search by title, description..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setCurrentPage(1);
-            }}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             className="pl-9 bg-white border-neutral-350 text-neutral-950 placeholder:text-neutral-500 shadow-2xs focus-visible:ring-neutral-900 focus-visible:border-neutral-800"
           />
-        </div>
-
-        {/* Filters */}
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-          {/* Category Filter */}
-          <Select
-            value={categoryFilter}
-            onValueChange={(val) => {
-              if (val !== null) {
-                setCategoryFilter(val);
-                setCurrentPage(1);
-              }
-            }}
-          >
-            <SelectTrigger className="h-9 min-w-[130px] rounded-[5px] border-neutral-350 bg-white px-3 text-xs text-neutral-900 font-medium shadow-2xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-white border border-neutral-300 shadow-md text-xs text-neutral-900">
-              <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="reading">Reading</SelectItem>
-              <SelectItem value="writing">Writing</SelectItem>
-              <SelectItem value="streak">Streak</SelectItem>
-              <SelectItem value="community">Community</SelectItem>
-              <SelectItem value="special">Special</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Tier Filter */}
-          <Select
-            value={tierFilter}
-            onValueChange={(val) => {
-              if (val !== null) {
-                setTierFilter(val);
-                setCurrentPage(1);
-              }
-            }}
-          >
-            <SelectTrigger className="h-9 min-w-[130px] rounded-[5px] border-neutral-350 bg-white px-3 text-xs text-neutral-900 font-medium shadow-2xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-white border border-neutral-300 shadow-md text-xs text-neutral-900">
-              <SelectItem value="all">All Tiers</SelectItem>
-              <SelectItem value="bronze">Bronze</SelectItem>
-              <SelectItem value="silver">Silver</SelectItem>
-              <SelectItem value="gold">Gold</SelectItem>
-              <SelectItem value="platinum">Platinum</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
       </div>
 
       {/* Reusable Table */}
-      <ReusableTable<AchievementItem>
+      <ReusableTable<DisplayAchievementItem>
         columns={columns}
-        data={paginatedAchievements}
+        data={achievements}
         rowKey={(item) => item.id}
+        isLoading={isLoading}
         selectedRowKeys={selectedAchievements}
         onSelectRow={(id) => handleSelectRow(Number(id))}
         onSelectAll={handleSelectAll}
         isAllSelected={
-          paginatedAchievements.length > 0 &&
-          paginatedAchievements.every((item) => selectedAchievements.includes(item.id))
+          achievements.length > 0 &&
+          achievements.every((item) => selectedAchievements.includes(item.id))
         }
         emptyMessage="No achievements found"
-        emptySubMessage="Try clearing search filters or check back later."
+        emptySubMessage={
+          searchQuery
+            ? "Try changing your search term."
+            : "Click 'Add Achievement' to create your first milestone badge."
+        }
         pagination={{
           currentPage,
           totalPages,
           pageSize,
           totalItems,
-          pageSizeOptions: [5, 10, 20],
+          pageSizeOptions: [5, 10, 20, 50],
           onPageChange: (page) => setCurrentPage(page),
-          onPageSizeChange: (size) => setPageSize(size),
+          onPageSizeChange: (size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          },
         }}
       />
 
+      {/* Add Achievement Modal */}
       <AddAchievementModal
         open={isAddModalOpen}
         onOpenChange={setIsAddModalOpen}
-        onSuccess={(newAchievement: ApiAchievementItem) => {
-          setAchievements((prev) => [
-            {
-              id: newAchievement.id,
-              title: newAchievement.title,
-              description: newAchievement.description,
-              category: "reading",
-              tier: "bronze",
-              xpPoints: 100,
-              unlockedCount: 0,
-              status: "active",
-              createdAt: newAchievement.created_at
-                ? new Date(newAchievement.created_at).toLocaleDateString("en-CA")
-                : new Date().toLocaleDateString("en-CA"),
-            },
-            ...prev,
-          ]);
+        onSuccess={(_newAchievement: ApiAchievementItem) => {
+          toast.add({
+            title: "Achievement created",
+            description: `Achievement was created successfully.`,
+            type: "success",
+            timeout: 3000,
+          });
+          setCurrentPage(1);
+          fetchAchievements();
         }}
       />
     </div>
   );
 }
+

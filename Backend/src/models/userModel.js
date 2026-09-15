@@ -155,7 +155,102 @@ export const updateUserProfile = async (userId, fieldsToUpdate) => {
   return rows[0] || null;
 };
 
-export const getAllAuthorsWithStories = async () => {
+export const getAllAuthorsWithStories = async (options = {}) => {
+  const { search, limit, offset } = options;
+
+  let whereClauses = ["u.role = 'author'"];
+  let values = [];
+  let paramIdx = 1;
+
+  if (search && String(search).trim() !== "") {
+    whereClauses.push(`(u.name ILIKE $${paramIdx} OR u.email ILIKE $${paramIdx} OR u.bio ILIKE $${paramIdx})`);
+    values.push(`%${String(search).trim()}%`);
+    paramIdx++;
+  }
+
+  const whereSql = `WHERE ${whereClauses.join(" AND ")}`;
+
+  if (limit === undefined && offset === undefined && !search) {
+    const query = `
+      SELECT
+        u.id,
+        u.name,
+        u.email,
+        u.phone_number,
+        u.gender,
+        u.profile_pic,
+        u.cover_pic,
+        u.role,
+        u.is_verified,
+        u.bio,
+        u.reason,
+        u.birth_date,
+        u.created_at,
+        u.updated_at,
+        COALESCE(
+          JSON_AGG(
+            JSON_BUILD_OBJECT(
+              'id', s.id,
+              'title', s.title,
+              'description', s.description,
+              'cover_pic', s.cover_pic,
+              'genre', s.genre,
+              'read_time', s.read_time,
+              'status', s.status,
+              'likes_count', COALESCE(l.likes_count, 0),
+              'comments_count', COALESCE(c.comments_count, 0),
+              'reads_count', COALESCE(r.reads_count, 0),
+              'created_at', s.created_at,
+              'updated_at', s.updated_at
+            ) ORDER BY s.created_at DESC
+          ) FILTER (WHERE s.id IS NOT NULL),
+          '[]'
+        ) AS stories,
+        COUNT(s.id)::INT AS total_stories_count,
+        COALESCE(SUM(l.likes_count), 0)::INT AS total_likes_count,
+        COALESCE(SUM(r.reads_count), 0)::INT AS total_reads_count
+      FROM users u
+      LEFT JOIN stories s ON u.id = s.author_id AND s.is_deleted = FALSE AND s.status = 'published'
+      LEFT JOIN (
+        SELECT story_id, COUNT(*) AS likes_count FROM story_likes GROUP BY story_id
+      ) l ON s.id = l.story_id
+      LEFT JOIN (
+        SELECT story_id, COUNT(*) AS comments_count FROM story_comments GROUP BY story_id
+      ) c ON s.id = c.story_id
+      LEFT JOIN (
+        SELECT story_id, COUNT(*) AS reads_count FROM story_reads GROUP BY story_id
+      ) r ON s.id = r.story_id
+      ${whereSql}
+      GROUP BY u.id
+      ORDER BY total_reads_count DESC, u.created_at DESC;
+    `;
+    const { rows } = await pool.query(query);
+    return rows;
+  }
+
+  const countQuery = `
+    SELECT COUNT(*)::INT AS total
+    FROM users u
+    ${whereSql}
+  `;
+  const countRes = await pool.query(countQuery, values);
+  const total = countRes.rows[0]?.total || 0;
+
+  let paginationSql = "";
+  const queryValues = [...values];
+
+  if (limit !== undefined) {
+    paginationSql += ` LIMIT $${paramIdx}`;
+    queryValues.push(limit);
+    paramIdx++;
+  }
+
+  if (offset !== undefined) {
+    paginationSql += ` OFFSET $${paramIdx}`;
+    queryValues.push(offset);
+    paramIdx++;
+  }
+
   const query = `
     SELECT
       u.id,
@@ -205,10 +300,11 @@ export const getAllAuthorsWithStories = async () => {
     LEFT JOIN (
       SELECT story_id, COUNT(*) AS reads_count FROM story_reads GROUP BY story_id
     ) r ON s.id = r.story_id
-    WHERE u.role = 'author'
+    ${whereSql}
     GROUP BY u.id
-    ORDER BY total_reads_count DESC, u.created_at DESC;
+    ORDER BY total_reads_count DESC, u.created_at DESC
+    ${paginationSql};
   `;
-  const { rows } = await pool.query(query);
-  return rows;
+  const { rows } = await pool.query(query, queryValues);
+  return { authors: rows, total };
 };

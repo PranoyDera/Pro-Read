@@ -1,4 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import { toast } from "sonner";
 import {
   API_BASE_URL,
   AUTH_TOKEN_EVENT,
@@ -50,17 +51,55 @@ axiosInstance.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Keep track of the last toast timestamp to avoid spamming the user on parallel requests
+let lastNetworkToastTime = 0;
+const TOAST_COOLDOWN_MS = 3000;
+
+const showNetworkErrorToast = (message: string) => {
+  if (!isBrowser) return;
+  const now = Date.now();
+  if (now - lastNetworkToastTime > TOAST_COOLDOWN_MS) {
+    lastNetworkToastTime = now;
+    toast.error(message);
+  }
+};
+
 // Response Interceptor for handling unified errors
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error: AxiosError<{ message?: string }>) => {
+    // Check if network error or backend connection failed (no response from server)
+    const isNetworkError =
+      !error.response ||
+      error.code === "ERR_NETWORK" ||
+      error.code === "ECONNABORTED" ||
+      error.message === "Network Error";
+
+    // 5xx Server Error (backend is failing / crashed)
+    const isServerError =
+      Boolean(error.response?.status && error.response.status >= 500);
+
+    if (isNetworkError) {
+      showNetworkErrorToast("Server connection error. Please check your backend or network.");
+      return new Promise(() => {});
+    }
+
+    if (isServerError) {
+      showNetworkErrorToast(
+        error.response?.data?.message || "Internal server error. Please try again later."
+      );
+      return new Promise(() => {});
+    }
+
     if (error.response?.status === 401 || error.response?.status === 403) {
       clearAuthToken();
     }
+
     const message =
       error.response?.data?.message ||
       error.message ||
       "Something went wrong";
+
     return Promise.reject(new Error(message));
   }
 );

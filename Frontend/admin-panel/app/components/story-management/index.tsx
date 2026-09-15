@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/app/components/ui/select";
 import { StoryTable } from "./story-table";
+import { StoryViewModal } from "./story-view-modal";
 import {
   AdminStory,
   getPublishedStories,
@@ -36,6 +37,7 @@ export interface StoryItem {
   likesCount: number;
   readsCount: number;
   commentsCount: number;
+  reportsCount: number;
   createdAt: string;
 }
 
@@ -55,26 +57,54 @@ const mapAdminStoryToStoryItem = (s: AdminStory): StoryItem => ({
   likesCount: Number(s.likes_count || 0),
   readsCount: Number(s.reads_count || 0),
   commentsCount: Number(s.comments_count || 0),
+  reportsCount: Number(s.reports || 0),
   createdAt: s.created_at ? new Date(s.created_at).toISOString().split("T")[0] : "N/A",
 });
 
 export default function StoryManagementComponent() {
   const [stories, setStories] = useState<StoryItem[]>([]);
+  const [totalItems, setTotalItems] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [genreFilter, setGenreFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
   const [selectedStories, setSelectedStories] = useState<number[]>([]);
+  const [viewingStoryId, setViewingStoryId] = useState<number | null>(null);
 
-  // Fetch stories from Backend API
-  const fetchStories = async () => {
+  // Debounce search input
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+      setCurrentPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Fetch stories from Backend API using server-side pagination
+  const fetchStories = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await getPublishedStories();
-      const mapped = data.map(mapAdminStoryToStoryItem);
+      const res = await getPublishedStories({
+        page: currentPage,
+        limit: pageSize,
+        search: debouncedSearch.trim() || undefined,
+        genre: genreFilter !== "all" ? genreFilter : undefined,
+      });
+
+      const mapped = (res.stories || []).map(mapAdminStoryToStoryItem);
       setStories(mapped);
+
+      if (res.pagination) {
+        setTotalItems(res.pagination.total);
+        setTotalPages(Math.max(1, res.pagination.totalPages));
+      } else {
+        setTotalItems(mapped.length);
+        setTotalPages(Math.max(1, Math.ceil(mapped.length / pageSize)));
+      }
     } catch (error: any) {
       toast.add({
         title: "Failed to load stories",
@@ -85,48 +115,52 @@ export default function StoryManagementComponent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentPage, pageSize, debouncedSearch, genreFilter]);
 
   React.useEffect(() => {
     fetchStories();
-  }, []);
+  }, [fetchStories]);
 
   // Available unique genres
   const genres = useMemo(() => {
-    return Array.from(new Set(stories.map((s) => s.genre).filter(Boolean)));
+    const list = [
+      "Fantasy",
+      "Cyberpunk",
+      "Sci-Fi",
+      "Mystery",
+      "Thriller",
+      "Romance",
+      "Historical",
+      "Horror",
+      "Adventure",
+      "Drama",
+      "Fiction",
+      "Non-Fiction"
+    ];
+    // Also include any other genres found in loaded stories
+    stories.forEach((s) => {
+      if (s.genre && !list.includes(s.genre)) {
+        list.push(s.genre);
+      }
+    });
+    return list;
   }, [stories]);
 
-  // Filtering
-  const filteredStories = useMemo(() => {
+  // Status filtering (if client-side status filter applied)
+  const displayedStories = useMemo(() => {
+    if (statusFilter === "all") return stories;
     return stories.filter((story) => {
-      const matchesSearch =
-        story.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        story.author.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        story.author.email.toLowerCase().includes(searchQuery.toLowerCase());
-
-      const matchesGenre =
-        genreFilter === "all" || story.genre.toLowerCase() === genreFilter.toLowerCase();
-
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "blocked" && story.isBlocked) ||
-        (statusFilter === "active" && !story.isBlocked && story.status === "published") ||
-        (statusFilter === "draft" && story.status === "draft");
-
-      return matchesSearch && matchesGenre && matchesStatus;
+      if (statusFilter === "blocked") return story.isBlocked;
+      if (statusFilter === "active") return !story.isBlocked && story.status === "published";
+      if (statusFilter === "draft") return story.status === "draft";
+      return true;
     });
-  }, [stories, searchQuery, genreFilter, statusFilter]);
-
-  // Pagination calculation
-  const totalItems = filteredStories.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const startIndex = (currentPage - 1) * pageSize;
-  const paginatedStories = filteredStories.slice(startIndex, startIndex + pageSize);
+  }, [stories, statusFilter]);
 
   // Selection handlers
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedStories(paginatedStories.map((s) => s.id));
+      setSelectedStories(displayedStories.map((s) => s.id));
     } else {
       setSelectedStories([]);
     }
@@ -214,10 +248,11 @@ export default function StoryManagementComponent() {
             variant="outline"
             size="sm"
             onClick={() => {
-              setSearchQuery("");
+              setSearchInput("");
+              setDebouncedSearch("");
               setGenreFilter("all");
               setStatusFilter("all");
-              fetchStories();
+              setCurrentPage(1);
             }}
             disabled={isLoading}
             className="border-neutral-400 bg-white text-neutral-900 hover:bg-neutral-100 hover:text-neutral-950 shadow-xs cursor-pointer font-medium"
@@ -252,11 +287,8 @@ export default function StoryManagementComponent() {
           <Search className="w-4 h-4 text-neutral-600 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <Input
             placeholder="Search by story title, author, email..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setCurrentPage(1);
-            }}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             className="pl-9 bg-white border-neutral-350 text-neutral-950 placeholder:text-neutral-500 shadow-2xs focus-visible:ring-2 focus-visible:ring-neutral-400/25 focus-visible:border-neutral-400"
           />
         </div>
@@ -311,7 +343,7 @@ export default function StoryManagementComponent() {
 
       {/* Reusable Story Table Component */}
       <StoryTable
-        paginatedStories={paginatedStories}
+        paginatedStories={displayedStories}
         selectedStories={selectedStories}
         totalItems={totalItems}
         currentPage={currentPage}
@@ -322,8 +354,20 @@ export default function StoryManagementComponent() {
         handleSelectRow={handleSelectRow}
         handleToggleBlock={handleToggleBlock}
         handleDelete={handleDelete}
-        setPageSize={setPageSize}
+        onViewStory={(id) => setViewingStoryId(id)}
+        setPageSize={(size) => {
+          setPageSize(size);
+          setCurrentPage(1);
+        }}
         setCurrentPage={setCurrentPage}
+      />
+
+      {/* Story View & Reports Modal */}
+      <StoryViewModal
+        storyId={viewingStoryId}
+        isOpen={viewingStoryId !== null}
+        onClose={() => setViewingStoryId(null)}
+        onStoryUpdated={fetchStories}
       />
     </div>
   );

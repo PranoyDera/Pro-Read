@@ -139,6 +139,14 @@ export const getPublishedStories = async (): Promise<PublishedStoriesResponse> =
   return response.data;
 };
 
+// 1.1 Get Featured Story
+export const getFeaturedStory = async (): Promise<StoryItem | null> => {
+  const response = await axiosInstance.get<{ story: StoryItem | null }>(
+    API_ENDPOINTS.stories.featured
+  );
+  return response.data.story || null;
+};
+
 // 2. Get Author's Saved Drafts
 export const getMyDrafts = async (): Promise<DraftsResponse> => {
   const response = await axiosInstance.get<DraftsResponse>(
@@ -267,6 +275,36 @@ export const deleteStory = async (
   return response.data;
 };
 
+export type ReportStoryPayload = {
+  reason: string;
+  details?: string;
+};
+
+export type ReportStoryResponse = {
+  message: string;
+  report?: {
+    id: number;
+    story_id: number;
+    user_id: number | null;
+    reason: string;
+    details: string | null;
+    created_at: string;
+  };
+  reportsCount?: number;
+};
+
+// 12. Report Story
+export const reportStory = async (
+  id: string | number,
+  payload: ReportStoryPayload
+): Promise<ReportStoryResponse> => {
+  const response = await axiosInstance.post<ReportStoryResponse>(
+    API_ENDPOINTS.stories.report(id),
+    payload
+  );
+  return response.data;
+};
+
 export const storyService = {
   getPublishedStories,
   getMyDrafts,
@@ -278,6 +316,7 @@ export const storyService = {
   toggleLikeStory,
   addCommentToStory,
   getStoryComments,
+  reportStory,
   blockStory,
   deleteStory,
 };

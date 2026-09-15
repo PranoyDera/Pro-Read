@@ -15,6 +15,7 @@ export const API_ENDPOINTS = {
     single: (id: string | number) => `/api/stories/${id}`,
     block: (id: string | number) => `/api/stories/${id}/block`,
     feature: (id: string | number) => `/api/stories/${id}/feature`,
+    reports: (id: string | number) => `/api/stories/${id}/reports`,
   },
   users: {
     profile: "/api/user/profile",

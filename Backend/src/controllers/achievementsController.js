@@ -5,11 +5,22 @@ import {
   getAllAchievements as getAllAchievementsFromDb,
   updateAchievement as updateAchievementInDb
 } from "../models/achievementsModel.js";
+import { getPaginationParams, buildPaginationMetadata } from "../utils/pagination.js";
 
 export const getAchievements = async (req, res) => {
   try {
-    const achievements = await getAllAchievementsFromDb();
-    return res.status(200).json({ achievements });
+    const { page, limit, offset, search } = getPaginationParams(req.query, 10);
+    const result = await getAllAchievementsFromDb({ search, limit, offset });
+
+    const achievements = Array.isArray(result) ? result : result.achievements;
+    const total = Array.isArray(result) ? result.length : result.total;
+
+    const pagination = buildPaginationMetadata({ total, page, limit, offset });
+
+    return res.status(200).json({
+      achievements,
+      pagination
+    });
   } catch (error) {
     return res
       .status(500)

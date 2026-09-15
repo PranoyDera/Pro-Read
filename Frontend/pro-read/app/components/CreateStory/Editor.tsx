@@ -30,7 +30,8 @@ import {
   CornerDownRight,
   User,
   Clock,
-  Upload
+  Upload,
+  Flag
 } from 'lucide-react';
 import { 
   createStory,
@@ -41,6 +42,7 @@ import {
   addCommentToStory,
   StoryComment 
 } from '@/app/Service/StoryService';
+import ReportModal from './ReportModal';
 import { API_BASE_URL } from '@/app/Constants/Common';
 
 interface CreateStoryComponentProps {
@@ -105,6 +107,9 @@ export default function CreateStoryComponent({
   const [commentInput, setCommentInput] = useState<string>('');
   const [isSubmittingComment, setIsSubmittingComment] = useState<boolean>(false);
   const [commentFeedback, setCommentFeedback] = useState<string | null>(null);
+
+  // Story Reporting Modal State
+  const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
 
   // Status & Feedback state
   const [isSubmitting, setIsSubmitting] = useState<'saving' | 'publishing' | null>(null);
@@ -1089,6 +1094,17 @@ export default function CreateStoryComponent({
                   <Share2 className="w-4 h-4 text-indigo-400" />
                   <span>{copiedShare ? 'Link Copied!' : 'Share Story'}</span>
                 </button>
+
+                {/* Report Story Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsReportModalOpen(true)}
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/5 hover:bg-rose-500/10 text-slate-300 hover:text-rose-400 border border-white/10 hover:border-rose-500/30 transition-all cursor-pointer shadow-md"
+                  title="Report this story to moderators"
+                >
+                  <Flag className="w-4 h-4 text-rose-400/80" />
+                  <span className="hidden sm:inline">Report Story</span>
+                </button>
               </div>
 
               {/* Comments count indicator */}
@@ -1097,6 +1113,13 @@ export default function CreateStoryComponent({
                 <span>{comments.length} {comments.length === 1 ? 'Comment' : 'Comments'}</span>
               </div>
             </div>
+
+            {/* Report Story Modal Dialog */}
+            <ReportModal
+              isOpen={isReportModalOpen}
+              onClose={() => setIsReportModalOpen(false)}
+              storyId={storyId}
+            />
 
             {/* Comments Discussion Section */}
             <div className="space-y-6">

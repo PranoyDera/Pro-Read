@@ -8,11 +8,14 @@ import {
   getAuthorDraftById as getAuthorDraftByIdFromDb,
   getAuthorPublishedStories as getAuthorPublishedStoriesFromDb,
   getDraftById as getDraftByIdFromDb,
+  getFeaturedStory as getFeaturedStoryFromDb,
   getPublishedStories as getPublishedStoriesFromDb,
   getStoryById as getStoryByIdFromDb,
   getStoryComments as getStoryCommentsFromDb,
   hardDeleteDraftInDb,
   recordStoryRead as recordStoryReadInDb,
+  reportStory as reportStoryInDb,
+  getStoryReports as getStoryReportsFromDb,
   setStoryBlockStatus as setStoryBlockStatusInDb,
   setStoryFeaturedStatus as setStoryFeaturedStatusInDb,
   softDeleteStory as softDeleteStoryInDb,
@@ -20,6 +23,7 @@ import {
   updateDraftInDb,
   updateStory as updateStoryInDb
 } from "../models/storyModel.js";
+import { getPaginationParams, buildPaginationMetadata } from "../utils/pagination.js";
 
 // Helper function to calculate read time from story description / text content
 export const calculateReadTime = (content) => {
@@ -301,8 +305,15 @@ export const addCommentToStory = async (req, res) => {
 export const getStoryCommentsController = async (req, res) => {
   try {
     const { id } = req.params;
-    const comments = await getStoryCommentsFromDb(id);
-    return res.status(200).json({ comments });
+    const { page, limit, offset, search } = getPaginationParams(req.query, 20);
+
+    const result = await getStoryCommentsFromDb(id, { search, limit, offset });
+
+    const comments = Array.isArray(result) ? result : result.comments;
+    const total = Array.isArray(result) ? result.length : result.total;
+    const pagination = buildPaginationMetadata({ total, page, limit, offset });
+
+    return res.status(200).json({ comments, pagination });
   } catch (error) {
     return res
       .status(500)
@@ -312,8 +323,16 @@ export const getStoryCommentsController = async (req, res) => {
 
 export const getPublishedStories = async (req, res) => {
   try {
-    const stories = await getPublishedStoriesFromDb();
-    return res.status(200).json({ stories });
+    const { page, limit, offset, search } = getPaginationParams(req.query, 10);
+    const genre = req.query.genre;
+
+    const result = await getPublishedStoriesFromDb({ search, limit, offset, genre });
+
+    const stories = Array.isArray(result) ? result : result.stories;
+    const total = Array.isArray(result) ? result.length : result.total;
+    const pagination = buildPaginationMetadata({ total, page, limit, offset });
+
+    return res.status(200).json({ stories, pagination });
   } catch (error) {
     return res
       .status(500)
@@ -324,8 +343,15 @@ export const getPublishedStories = async (req, res) => {
 export const getMyDrafts = async (req, res) => {
   try {
     const authorId = req.user.userId;
-    const drafts = await getAuthorDraftsFromDb(authorId);
-    return res.status(200).json({ drafts });
+    const { page, limit, offset, search } = getPaginationParams(req.query, 10);
+
+    const result = await getAuthorDraftsFromDb(authorId, { search, limit, offset });
+
+    const drafts = Array.isArray(result) ? result : result.drafts;
+    const total = Array.isArray(result) ? result.length : result.total;
+    const pagination = buildPaginationMetadata({ total, page, limit, offset });
+
+    return res.status(200).json({ drafts, pagination });
   } catch (error) {
     return res
       .status(500)
@@ -361,11 +387,19 @@ export const getSingleDraft = async (req, res) => {
 export const getMyPublishedStories = async (req, res) => {
   try {
     const authorId = req.user.userId;
-    const stories = await getAuthorPublishedStoriesFromDb(authorId);
+    const { page, limit, offset, search } = getPaginationParams(req.query, 10);
+
+    const result = await getAuthorPublishedStoriesFromDb(authorId, { search, limit, offset });
+
+    const stories = Array.isArray(result) ? result : result.stories;
+    const total = Array.isArray(result) ? result.length : result.total;
+    const pagination = buildPaginationMetadata({ total, page, limit, offset });
+
     return res.status(200).json({
       message: "Published stories fetched successfully",
       count: stories.length,
-      stories
+      stories,
+      pagination
     });
   } catch (error) {
     return res
@@ -431,6 +465,17 @@ export const featureStory = async (req, res) => {
   }
 };
 
+export const getFeaturedStory = async (req, res) => {
+  try {
+    const story = await getFeaturedStoryFromDb();
+    return res.status(200).json({ story });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch featured story", error: error.message });
+  }
+};
+
 export const deleteStory = async (req, res) => {
   try {
     const { id } = req.params;
@@ -456,3 +501,44 @@ export const deleteStory = async (req, res) => {
       .json({ message: "Failed to delete story/draft", error: error.message });
   }
 };
+
+export const reportStoryController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason, details } = req.body;
+    const userId = req.user?.userId || null;
+
+    if (!reason || String(reason).trim() === "") {
+      return res.status(400).json({ message: "Reason for reporting is required" });
+    }
+
+    const result = await reportStoryInDb(id, userId, reason, details);
+
+    return res.status(201).json({
+      message: "Story reported successfully",
+      report: result.report,
+      reportsCount: result.totalReports
+    });
+  } catch (error) {
+    if (error.message === "Story not found") {
+      return res.status(404).json({ message: "Story not found" });
+    }
+    return res
+      .status(500)
+      .json({ message: "Failed to report story", error: error.message });
+  }
+};
+
+export const getStoryReportsController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const reports = await getStoryReportsFromDb(id);
+
+    return res.status(200).json({ reports });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch story reports", error: error.message });
+  }
+};
+

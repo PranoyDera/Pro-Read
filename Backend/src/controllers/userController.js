@@ -10,6 +10,7 @@ import {
   updateUserRoleToAuthor
 } from "../models/userModel.js";
 import { uploadBufferToCloudinary, uploadBase64ToCloudinary } from "../config/cloudinary.js";
+import { getPaginationParams, buildPaginationMetadata } from "../utils/pagination.js";
 
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const isValidPhoneNumber = (phoneNumber) =>
@@ -271,11 +272,19 @@ export const getUserProfile = async (req, res) => {
 
 export const getAuthors = async (req, res) => {
   try {
-    const authors = await getAllAuthorsWithStories();
+    const { page, limit, offset, search } = getPaginationParams(req.query, 10);
+
+    const result = await getAllAuthorsWithStories({ search, limit, offset });
+
+    const authors = Array.isArray(result) ? result : result.authors;
+    const total = Array.isArray(result) ? result.length : result.total;
+    const pagination = buildPaginationMetadata({ total, page, limit, offset });
+
     return res.status(200).json({
       message: "Authors fetched successfully",
       count: authors.length,
-      authors
+      authors,
+      pagination
     });
   } catch (error) {
     return res

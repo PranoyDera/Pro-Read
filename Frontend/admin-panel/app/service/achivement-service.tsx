@@ -11,8 +11,25 @@ export interface AchievementItem {
   updated_at: string;
 }
 
+export interface PaginationMetadata {
+  total: number;
+  page: number;
+  limit: number;
+  offset: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
 export interface GetAchievementsResponse {
   achievements: AchievementItem[];
+  pagination?: PaginationMetadata;
+}
+
+export interface GetAchievementsParams {
+  page?: number;
+  limit?: number;
+  search?: string;
 }
 
 export interface GetSingleAchievementResponse {
@@ -36,14 +53,20 @@ export interface DeleteAchievementResponse {
 export type AchievementPayload = FormData | Record<string, unknown>;
 
 /**
- * Fetch all achievements
+ * Fetch all achievements with optional search & pagination
  * GET /api/achievements
  */
-export const getAchievements = async (): Promise<AchievementItem[]> => {
+export const getAchievements = async (
+  params?: GetAchievementsParams
+): Promise<{ achievements: AchievementItem[]; pagination?: PaginationMetadata }> => {
   const response = await axiosInstance.get<GetAchievementsResponse>(
-    API_ENDPOINTS.achievements.base
+    API_ENDPOINTS.achievements.base,
+    { params }
   );
-  return response.data.achievements || [];
+  return {
+    achievements: response.data.achievements || [],
+    pagination: response.data.pagination,
+  };
 };
 
 /**

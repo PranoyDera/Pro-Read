@@ -29,6 +29,7 @@ export const createStoriesTable = async () => {
       is_featured BOOLEAN DEFAULT FALSE,
       is_blocked BOOLEAN DEFAULT FALSE,
       is_deleted BOOLEAN DEFAULT FALSE,
+      reports INT DEFAULT 0,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
@@ -39,6 +40,7 @@ export const createStoriesTable = async () => {
     ALTER TABLE stories ADD COLUMN IF NOT EXISTS genre VARCHAR(100) DEFAULT 'General';
     ALTER TABLE stories ADD COLUMN IF NOT EXISTS read_time VARCHAR(50) DEFAULT '1 min read';
     ALTER TABLE stories ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT FALSE;
+    ALTER TABLE stories ADD COLUMN IF NOT EXISTS reports INT DEFAULT 0;
 
     -- Story Likes Table
     CREATE TABLE IF NOT EXISTS story_likes (
@@ -65,6 +67,16 @@ export const createStoriesTable = async () => {
       story_id INT NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
       user_id INT REFERENCES users(id) ON DELETE SET NULL,
       ip_address VARCHAR(100),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    -- Story Reports Table (detailed user reports on stories)
+    CREATE TABLE IF NOT EXISTS story_reports (
+      id SERIAL PRIMARY KEY,
+      story_id INT NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+      user_id INT REFERENCES users(id) ON DELETE SET NULL,
+      reason VARCHAR(100) NOT NULL,
+      details TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `;
@@ -115,15 +127,64 @@ export const getDraftById = async (draftId) => {
   return rows[0] || null;
 };
 
-export const getAuthorDrafts = async (authorId) => {
+export const getAuthorDrafts = async (authorId, options = {}) => {
+  const { search, limit, offset } = options;
+
+  let whereClauses = ["d.author_id = $1", "d.is_deleted = FALSE"];
+  let values = [authorId];
+  let paramIdx = 2;
+
+  if (search && String(search).trim() !== "") {
+    whereClauses.push(`(d.title ILIKE $${paramIdx} OR d.description ILIKE $${paramIdx} OR d.genre ILIKE $${paramIdx})`);
+    values.push(`%${String(search).trim()}%`);
+    paramIdx++;
+  }
+
+  const whereSql = `WHERE ${whereClauses.join(" AND ")}`;
+
+  if (limit === undefined && offset === undefined && !search) {
+    const query = `
+      SELECT d.id, d.author_id, d.title, d.description, d.cover_pic, d.genre, d.read_time, d.is_deleted, d.created_at, d.updated_at
+      FROM drafts d
+      ${whereSql}
+      ORDER BY d.updated_at DESC
+    `;
+    const { rows } = await pool.query(query, values);
+    return rows;
+  }
+
+  const countQuery = `
+    SELECT COUNT(*)::INT AS total
+    FROM drafts d
+    ${whereSql}
+  `;
+  const countRes = await pool.query(countQuery, values);
+  const total = countRes.rows[0]?.total || 0;
+
+  let paginationSql = "";
+  const queryValues = [...values];
+
+  if (limit !== undefined) {
+    paginationSql += ` LIMIT $${paramIdx}`;
+    queryValues.push(limit);
+    paramIdx++;
+  }
+
+  if (offset !== undefined) {
+    paginationSql += ` OFFSET $${paramIdx}`;
+    queryValues.push(offset);
+    paramIdx++;
+  }
+
   const query = `
     SELECT d.id, d.author_id, d.title, d.description, d.cover_pic, d.genre, d.read_time, d.is_deleted, d.created_at, d.updated_at
     FROM drafts d
-    WHERE d.author_id = $1 AND d.is_deleted = FALSE
+    ${whereSql}
     ORDER BY d.updated_at DESC
+    ${paginationSql}
   `;
-  const { rows } = await pool.query(query, [authorId]);
-  return rows;
+  const { rows } = await pool.query(query, queryValues);
+  return { drafts: rows, total };
 };
 
 export const updateDraftInDb = async (id, authorId, { title, description, coverPic, genre, readTime }) => {
@@ -222,7 +283,7 @@ export const createStory = async ({
 
 export const getStoryById = async (id) => {
   const query = `
-    SELECT s.id, s.author_id, s.title, s.description, s.cover_pic, s.genre, s.read_time, s.status, s.is_featured, s.is_blocked, s.is_deleted, s.created_at, s.updated_at,
+    SELECT s.id, s.author_id, s.title, s.description, s.cover_pic, s.genre, s.read_time, s.status, s.is_featured, s.is_blocked, s.is_deleted, s.reports, s.created_at, s.updated_at,
            u.name AS author_name, u.email AS author_email, u.profile_pic AS author_profile_pic,
            COALESCE(l.likes_count, 0)::INT AS likes_count,
            COALESCE(c.comments_count, 0)::INT AS comments_count,
@@ -353,6 +414,32 @@ export const setStoryFeaturedStatus = async (id, isFeatured) => {
   return rows[0] || null;
 };
 
+export const getFeaturedStory = async () => {
+  const query = `
+    SELECT s.id, s.author_id, s.title, s.description, s.cover_pic, s.genre, s.read_time, s.status, s.is_featured, s.is_blocked, s.is_deleted, s.reports, s.created_at, s.updated_at,
+           u.name AS author_name, u.email AS author_email, u.profile_pic AS author_profile_pic,
+           COALESCE(l.likes_count, 0)::INT AS likes_count,
+           COALESCE(c.comments_count, 0)::INT AS comments_count,
+           COALESCE(r.reads_count, 0)::INT AS reads_count
+    FROM stories s
+    JOIN users u ON s.author_id = u.id
+    LEFT JOIN (
+      SELECT story_id, COUNT(*) AS likes_count FROM story_likes GROUP BY story_id
+    ) l ON s.id = l.story_id
+    LEFT JOIN (
+      SELECT story_id, COUNT(*) AS comments_count FROM story_comments GROUP BY story_id
+    ) c ON s.id = c.story_id
+    LEFT JOIN (
+      SELECT story_id, COUNT(*) AS reads_count FROM story_reads GROUP BY story_id
+    ) r ON s.id = r.story_id
+    WHERE s.is_featured = TRUE AND s.is_blocked = FALSE AND s.is_deleted = FALSE
+    ORDER BY s.updated_at DESC
+    LIMIT 1
+  `;
+  const { rows } = await pool.query(query);
+  return rows[0] || null;
+};
+
 export const softDeleteStory = async (id, authorId, isAdmin = false) => {
   let query;
   let values;
@@ -379,9 +466,71 @@ export const softDeleteStory = async (id, authorId, isAdmin = false) => {
   return rows[0] || null;
 };
 
-export const getAuthorPublishedStories = async (authorId) => {
+export const getAuthorPublishedStories = async (authorId, options = {}) => {
+  const { search, limit, offset } = options;
+
+  let whereClauses = ["s.author_id = $1", "s.is_deleted = FALSE"];
+  let values = [authorId];
+  let paramIdx = 2;
+
+  if (search && String(search).trim() !== "") {
+    whereClauses.push(`(s.title ILIKE $${paramIdx} OR s.description ILIKE $${paramIdx} OR s.genre ILIKE $${paramIdx})`);
+    values.push(`%${String(search).trim()}%`);
+    paramIdx++;
+  }
+
+  const whereSql = `WHERE ${whereClauses.join(" AND ")}`;
+
+  if (limit === undefined && offset === undefined && !search) {
+    const query = `
+      SELECT s.id, s.author_id, s.title, s.description, s.cover_pic, s.genre, s.read_time, s.status, s.is_featured, s.is_blocked, s.is_deleted, s.reports, s.created_at, s.updated_at,
+             u.name AS author_name, u.email AS author_email, u.profile_pic AS author_profile_pic,
+             COALESCE(l.likes_count, 0)::INT AS likes_count,
+             COALESCE(c.comments_count, 0)::INT AS comments_count,
+             COALESCE(r.reads_count, 0)::INT AS reads_count
+      FROM stories s
+      JOIN users u ON s.author_id = u.id
+      LEFT JOIN (
+        SELECT story_id, COUNT(*) AS likes_count FROM story_likes GROUP BY story_id
+      ) l ON s.id = l.story_id
+      LEFT JOIN (
+        SELECT story_id, COUNT(*) AS comments_count FROM story_comments GROUP BY story_id
+      ) c ON s.id = c.story_id
+      LEFT JOIN (
+        SELECT story_id, COUNT(*) AS reads_count FROM story_reads GROUP BY story_id
+      ) r ON s.id = r.story_id
+      ${whereSql}
+      ORDER BY s.created_at DESC
+    `;
+    const { rows } = await pool.query(query, values);
+    return rows;
+  }
+
+  const countQuery = `
+    SELECT COUNT(*)::INT AS total
+    FROM stories s
+    ${whereSql}
+  `;
+  const countRes = await pool.query(countQuery, values);
+  const total = countRes.rows[0]?.total || 0;
+
+  let paginationSql = "";
+  const queryValues = [...values];
+
+  if (limit !== undefined) {
+    paginationSql += ` LIMIT $${paramIdx}`;
+    queryValues.push(limit);
+    paramIdx++;
+  }
+
+  if (offset !== undefined) {
+    paginationSql += ` OFFSET $${paramIdx}`;
+    queryValues.push(offset);
+    paramIdx++;
+  }
+
   const query = `
-    SELECT s.id, s.author_id, s.title, s.description, s.cover_pic, s.genre, s.read_time, s.status, s.is_featured, s.is_blocked, s.is_deleted, s.created_at, s.updated_at,
+    SELECT s.id, s.author_id, s.title, s.description, s.cover_pic, s.genre, s.read_time, s.status, s.is_featured, s.is_blocked, s.is_deleted, s.reports, s.created_at, s.updated_at,
            u.name AS author_name, u.email AS author_email, u.profile_pic AS author_profile_pic,
            COALESCE(l.likes_count, 0)::INT AS likes_count,
            COALESCE(c.comments_count, 0)::INT AS comments_count,
@@ -397,16 +546,86 @@ export const getAuthorPublishedStories = async (authorId) => {
     LEFT JOIN (
       SELECT story_id, COUNT(*) AS reads_count FROM story_reads GROUP BY story_id
     ) r ON s.id = r.story_id
-    WHERE s.author_id = $1 AND s.is_deleted = FALSE
+    ${whereSql}
     ORDER BY s.created_at DESC
+    ${paginationSql}
   `;
-  const { rows } = await pool.query(query, [authorId]);
-  return rows;
+  const { rows } = await pool.query(query, queryValues);
+  return { stories: rows, total };
 };
 
-export const getPublishedStories = async () => {
+export const getPublishedStories = async (options = {}) => {
+  const { search, limit, offset, genre } = options;
+
+  let whereClauses = ["s.is_blocked = FALSE", "s.is_deleted = FALSE"];
+  let values = [];
+  let paramIdx = 1;
+
+  if (genre && String(genre).trim() !== "" && String(genre).toLowerCase() !== "all") {
+    whereClauses.push(`s.genre = $${paramIdx}`);
+    values.push(String(genre).trim());
+    paramIdx++;
+  }
+
+  if (search && String(search).trim() !== "") {
+    whereClauses.push(`(s.title ILIKE $${paramIdx} OR s.description ILIKE $${paramIdx} OR u.name ILIKE $${paramIdx} OR s.genre ILIKE $${paramIdx})`);
+    values.push(`%${String(search).trim()}%`);
+    paramIdx++;
+  }
+
+  const whereSql = `WHERE ${whereClauses.join(" AND ")}`;
+
+  if (limit === undefined && offset === undefined && !search && !genre) {
+    const query = `
+      SELECT s.id, s.author_id, s.title, s.description, s.cover_pic, s.genre, s.read_time, s.status, s.is_featured, s.is_blocked, s.is_deleted, s.reports, s.created_at, s.updated_at,
+             u.name AS author_name, u.email AS author_email, u.profile_pic AS author_profile_pic,
+             COALESCE(l.likes_count, 0)::INT AS likes_count,
+             COALESCE(c.comments_count, 0)::INT AS comments_count,
+             COALESCE(r.reads_count, 0)::INT AS reads_count
+      FROM stories s
+      JOIN users u ON s.author_id = u.id
+      LEFT JOIN (
+        SELECT story_id, COUNT(*) AS likes_count FROM story_likes GROUP BY story_id
+      ) l ON s.id = l.story_id
+      LEFT JOIN (
+        SELECT story_id, COUNT(*) AS comments_count FROM story_comments GROUP BY story_id
+      ) c ON s.id = c.story_id
+      LEFT JOIN (
+        SELECT story_id, COUNT(*) AS reads_count FROM story_reads GROUP BY story_id
+      ) r ON s.id = r.story_id
+      ${whereSql}
+      ORDER BY s.is_featured DESC, s.created_at DESC
+    `;
+    const { rows } = await pool.query(query);
+    return rows;
+  }
+
+  const countQuery = `
+    SELECT COUNT(*)::INT AS total
+    FROM stories s
+    JOIN users u ON s.author_id = u.id
+    ${whereSql}
+  `;
+  const countRes = await pool.query(countQuery, values);
+  const total = countRes.rows[0]?.total || 0;
+
+  let paginationSql = "";
+  const queryValues = [...values];
+
+  if (limit !== undefined) {
+    paginationSql += ` LIMIT $${paramIdx}`;
+    queryValues.push(limit);
+    paramIdx++;
+  }
+
+  if (offset !== undefined) {
+    paginationSql += ` OFFSET $${paramIdx}`;
+    queryValues.push(offset);
+    paramIdx++;
+  }
+
   const query = `
-    SELECT s.id, s.author_id, s.title, s.description, s.cover_pic, s.genre, s.read_time, s.status, s.is_featured, s.is_blocked, s.is_deleted, s.created_at, s.updated_at,
+    SELECT s.id, s.author_id, s.title, s.description, s.cover_pic, s.genre, s.read_time, s.status, s.is_featured, s.is_blocked, s.is_deleted, s.reports, s.created_at, s.updated_at,
            u.name AS author_name, u.email AS author_email, u.profile_pic AS author_profile_pic,
            COALESCE(l.likes_count, 0)::INT AS likes_count,
            COALESCE(c.comments_count, 0)::INT AS comments_count,
@@ -422,10 +641,60 @@ export const getPublishedStories = async () => {
     LEFT JOIN (
       SELECT story_id, COUNT(*) AS reads_count FROM story_reads GROUP BY story_id
     ) r ON s.id = r.story_id
-    WHERE s.is_blocked = FALSE AND s.is_deleted = FALSE
-    ORDER BY s.created_at DESC
+    ${whereSql}
+    ORDER BY s.is_featured DESC, s.created_at DESC
+    ${paginationSql}
   `;
-  const { rows } = await pool.query(query);
+  const { rows } = await pool.query(query, queryValues);
+  return { stories: rows, total };
+};
+
+// Report a story (records report and increments stories.reports counter)
+export const reportStory = async (storyId, userId = null, reason = "other", details = "") => {
+  // Check story existence
+  const existing = await getStoryById(storyId);
+  if (!existing) {
+    throw new Error("Story not found");
+  }
+
+  // Insert report record
+  const insertReportQuery = `
+    INSERT INTO story_reports (story_id, user_id, reason, details)
+    VALUES ($1, $2, $3, $4)
+    RETURNING id, story_id, user_id, reason, details, created_at
+  `;
+  const { rows: reportRows } = await pool.query(insertReportQuery, [
+    storyId,
+    userId,
+    String(reason).trim(),
+    details ? String(details).trim() : null
+  ]);
+
+  // Increment reports count in stories table
+  const updateCountQuery = `
+    UPDATE stories
+    SET reports = COALESCE(reports, 0) + 1, updated_at = NOW()
+    WHERE id = $1
+    RETURNING id, reports
+  `;
+  const { rows: updateRows } = await pool.query(updateCountQuery, [storyId]);
+
+  return {
+    report: reportRows[0],
+    totalReports: updateRows[0]?.reports || 1
+  };
+};
+
+export const getStoryReports = async (storyId) => {
+  const query = `
+    SELECT sr.id, sr.story_id, sr.user_id, sr.reason, sr.details, sr.created_at,
+           u.name AS user_name, u.email AS user_email
+    FROM story_reports sr
+    LEFT JOIN users u ON sr.user_id = u.id
+    WHERE sr.story_id = $1
+    ORDER BY sr.created_at DESC
+  `;
+  const { rows } = await pool.query(query, [storyId]);
   return rows;
 };
 
@@ -463,16 +732,68 @@ export const addStoryComment = async (storyId, userId, content) => {
   return rows[0];
 };
 
-export const getStoryComments = async (storyId) => {
+export const getStoryComments = async (storyId, options = {}) => {
+  const { search, limit, offset } = options;
+
+  let whereClauses = ["sc.story_id = $1"];
+  let values = [storyId];
+  let paramIdx = 2;
+
+  if (search && String(search).trim() !== "") {
+    whereClauses.push(`(sc.content ILIKE $${paramIdx} OR u.name ILIKE $${paramIdx})`);
+    values.push(`%${String(search).trim()}%`);
+    paramIdx++;
+  }
+
+  const whereSql = `WHERE ${whereClauses.join(" AND ")}`;
+
+  if (limit === undefined && offset === undefined && !search) {
+    const query = `
+      SELECT sc.id, sc.story_id, sc.user_id, sc.content, sc.created_at, sc.updated_at,
+             u.name AS user_name, u.profile_pic AS user_profile_pic
+      FROM story_comments sc
+      JOIN users u ON sc.user_id = u.id
+      ${whereSql}
+      ORDER BY sc.created_at ASC
+    `;
+    const { rows } = await pool.query(query, values);
+    return rows;
+  }
+
+  const countQuery = `
+    SELECT COUNT(*)::INT AS total
+    FROM story_comments sc
+    JOIN users u ON sc.user_id = u.id
+    ${whereSql}
+  `;
+  const countRes = await pool.query(countQuery, values);
+  const total = countRes.rows[0]?.total || 0;
+
+  let paginationSql = "";
+  const queryValues = [...values];
+
+  if (limit !== undefined) {
+    paginationSql += ` LIMIT $${paramIdx}`;
+    queryValues.push(limit);
+    paramIdx++;
+  }
+
+  if (offset !== undefined) {
+    paginationSql += ` OFFSET $${paramIdx}`;
+    queryValues.push(offset);
+    paramIdx++;
+  }
+
   const query = `
     SELECT sc.id, sc.story_id, sc.user_id, sc.content, sc.created_at, sc.updated_at,
            u.name AS user_name, u.profile_pic AS user_profile_pic
     FROM story_comments sc
     JOIN users u ON sc.user_id = u.id
-    WHERE sc.story_id = $1
+    ${whereSql}
     ORDER BY sc.created_at ASC
+    ${paginationSql}
   `;
-  const { rows } = await pool.query(query, [storyId]);
-  return rows;
+  const { rows } = await pool.query(query, queryValues);
+  return { comments: rows, total };
 };
 

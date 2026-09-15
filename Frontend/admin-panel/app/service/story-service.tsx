@@ -19,45 +19,46 @@ export type AdminStory = {
   likes_count: number;
   comments_count: number;
   reads_count: number;
+  reports?: number;
   created_at: string;
   updated_at: string;
 };
+
+export interface PaginationMetadata {
+  total: number;
+  page: number;
+  limit: number;
+  offset: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
 
 export type GetPublishedStoriesResponse = {
   stories: AdminStory[];
   message?: string;
   count?: number;
+  pagination?: PaginationMetadata;
 };
 
-export type GetSingleStoryResponse = {
-  story: AdminStory;
-  message?: string;
-};
+export interface GetPublishedStoriesParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  genre?: string;
+}
 
-export type FeatureStoryResponse = {
-  message: string;
-  story: AdminStory;
-  currentFeaturedStory?: {
-    id: number;
-    title: string;
-    is_featured: boolean;
-  };
-};
-
-export type BlockStoryResponse = {
-  message: string;
-  story: AdminStory;
-};
-
-export type DeleteStoryResponse = {
-  message: string;
-};
-
-export const getPublishedStories = async (): Promise<AdminStory[]> => {
+export const getPublishedStories = async (
+  params?: GetPublishedStoriesParams
+): Promise<{ stories: AdminStory[]; pagination?: PaginationMetadata }> => {
   const response = await axiosInstance.get<GetPublishedStoriesResponse>(
-    API_ENDPOINTS.stories.base
+    API_ENDPOINTS.stories.base,
+    { params }
   );
-  return response.data.stories || [];
+  return {
+    stories: response.data.stories || [],
+    pagination: response.data.pagination,
+  };
 };
 
 export const getSingleStory = async (
@@ -100,9 +101,35 @@ export const deleteStory = async (
   return response.data;
 };
 
+export interface StoryReport {
+  id: number;
+  story_id: number;
+  user_id: number | null;
+  reason: string;
+  details: string | null;
+  created_at: string;
+  user_name?: string | null;
+  user_email?: string | null;
+}
+
+export type GetStoryReportsResponse = {
+  reports: StoryReport[];
+  message?: string;
+};
+
+export const getStoryReports = async (
+  id: string | number
+): Promise<StoryReport[]> => {
+  const response = await axiosInstance.get<GetStoryReportsResponse>(
+    API_ENDPOINTS.stories.reports(id)
+  );
+  return response.data.reports || [];
+};
+
 export const storyService = {
   getPublishedStories,
   getSingleStory,
+  getStoryReports,
   featureStory,
   blockStory,
   deleteStory,

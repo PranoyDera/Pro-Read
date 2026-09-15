@@ -28,14 +28,63 @@ export const createAchievement = async ({ title, description, rule, icon }) => {
   return rows[0];
 };
 
-export const getAllAchievements = async () => {
+export const getAllAchievements = async (options = {}) => {
+  const { search, limit, offset } = options;
+
+  let whereClauses = [];
+  let values = [];
+  let paramIdx = 1;
+
+  if (search && String(search).trim() !== "") {
+    whereClauses.push(`(title ILIKE $${paramIdx} OR description ILIKE $${paramIdx})`);
+    values.push(`%${String(search).trim()}%`);
+    paramIdx++;
+  }
+
+  const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
+
+  // If limit is not specified and no search/offset, keep backward compatibility returning array
+  if (limit === undefined && offset === undefined && !search) {
+    const query = `
+      SELECT id, title, description, rule, icon, created_at, updated_at
+      FROM achievements
+      ORDER BY id ASC
+    `;
+    const { rows } = await pool.query(query);
+    return rows;
+  }
+
+  // Count total matching rows
+  const countQuery = `SELECT COUNT(*)::INT AS total FROM achievements ${whereSql}`;
+  const countRes = await pool.query(countQuery, values);
+  const total = countRes.rows[0]?.total || 0;
+
+  // Build paginated query
+  let paginationSql = "";
+  const queryValues = [...values];
+
+  if (limit !== undefined) {
+    paginationSql += ` LIMIT $${paramIdx}`;
+    queryValues.push(limit);
+    paramIdx++;
+  }
+
+  if (offset !== undefined) {
+    paginationSql += ` OFFSET $${paramIdx}`;
+    queryValues.push(offset);
+    paramIdx++;
+  }
+
   const query = `
     SELECT id, title, description, rule, icon, created_at, updated_at
     FROM achievements
+    ${whereSql}
     ORDER BY id ASC
+    ${paginationSql}
   `;
-  const { rows } = await pool.query(query);
-  return rows;
+
+  const { rows } = await pool.query(query, queryValues);
+  return { achievements: rows, total };
 };
 
 export const getAchievementById = async (id) => {

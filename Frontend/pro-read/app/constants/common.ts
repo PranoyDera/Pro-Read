@@ -35,6 +35,8 @@ export const API_ENDPOINTS = {
     single: (id: string | number) => `/api/stories/${id}`,
     like: (id: string | number) => `/api/stories/${id}/like`,
     comments: (id: string | number) => `/api/stories/${id}/comments`,
+    report: (id: string | number) => `/api/stories/${id}/report`,
     block: (id: string | number) => `/api/stories/${id}/block`,
+    featured: "/api/stories/featured",
   },
 } as const;

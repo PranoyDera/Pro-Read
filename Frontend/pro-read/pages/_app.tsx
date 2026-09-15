@@ -13,6 +13,7 @@ import {
   PUBLIC_ROUTES,
   USER_ALLOWED_ROUTES,
 } from "@/app/Constants/Common";
+import { Toaster } from "sonner";
 import "@/app/globals.css";
 
 const inter = Inter({
@@ -176,6 +177,7 @@ export default function App({ Component, pageProps }: AppProps) {
             }
           }}
         />
+        <Toaster richColors position="top-center" theme="dark" />
       </div>
     </>
   );
